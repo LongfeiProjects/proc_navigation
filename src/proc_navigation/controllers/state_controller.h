@@ -28,9 +28,12 @@
 
 #include <memory>
 #include <vector>
+#include <mutex>
+#include <atomic>
 #include <lib_atlas/macros.h>
 #include <lib_atlas/pattern/subject.h>
 #include <lib_atlas/pattern/observer.h>
+#include <lib_atlas/sys/timer.h>
 #include <ros/node_handle.h>
 
 namespace proc_navigation {
@@ -46,25 +49,50 @@ namespace proc_navigation {
  * depend on the child. No template usage is requiered here as the observer
  * will have to dynamic cast the message anyway...
  */
+template <class Tp_>
 class StateController : public atlas::Subject<> {
  public:
   //============================================================================
   // T Y P E D E F   A N D   E N U M
 
-  using Ptr = std::shared_ptr<StateController>;
-  using ConstPtr = std::shared_ptr<const StateController>;
+  using Ptr = std::shared_ptr<StateController<Tp_>>;
+  using ConstPtr = std::shared_ptr<const StateController<Tp_>>;
   using PtrList = std::vector<StateController::Ptr>;
   using ConstPtrList = std::vector<StateController::ConstPtr>;
 
   //============================================================================
   // P U B L I C   C / D T O R S
 
-  StateController() ATLAS_NOEXCEPT;
+  StateController(const ros::NodeHandlePtr &) ATLAS_NOEXCEPT;
 
   virtual ~StateController() ATLAS_NOEXCEPT;
 
   //============================================================================
   // P U B L I C   M E T H O D S
+
+  bool IsNewDataReady() const ATLAS_NOEXCEPT;
+
+ protected:
+  //============================================================================
+  // P R O T E C T E D   M E T H O D S
+
+  /**
+   * This accessor returns the time between two measurments.
+   * The method is set protected to prevent the user to access the delta_t.
+   * If the user access the delta_t that is not associated with its current
+   * data, it will create unwanted behavior. Prefer instead creating a structure
+   * of the information you want the user to have and send it when you have a
+   * new information available.
+   */
+  double GetTimeDelta() const ATLAS_NOEXCEPT;
+
+  /**
+   * This method will handle the behavior of a StateController when a new data
+   * comes. It will update the elapsed time for the data and alert the
+   * observers.
+   * The parsing of the data has to be done by children
+   */
+  void ReceivedNewData() ATLAS_NOEXCEPT;
 
  private:
   //============================================================================
@@ -72,6 +100,12 @@ class StateController : public atlas::Subject<> {
 
   //============================================================================
   // P R I V A T E   M E M B E R S
+
+  std::mutex time_mutex_;
+  double delta_t_;
+  atlas::MicroTimer timer;
+
+  std::atomic<bool> new_data_ready_;
 };
 
 }  // namespace proc_navigation

@@ -43,6 +43,10 @@ class DvlController : public StateController {
   using PtrList = std::vector<DvlController::Ptr>;
   using ConstPtrList = std::vector<DvlController::ConstPtr>;
 
+  struct DvlData {
+    double dt;
+  };
+
   //============================================================================
   // P U B L I C   C / D T O R S
 
@@ -53,13 +57,25 @@ class DvlController : public StateController {
   //============================================================================
   // P U B L I C   M E T H O D S
 
+  const DvlData &GetLastData() const ATLAS_NOEXCEPT;
+
  private:
   //============================================================================
   // P R I V A T E   M E T H O D S
 
   //============================================================================
   // P R I V A T E   M E M B E R S
+
+  DvlData last_data_;
 };
+
+//============================================================================
+// I N L I N E   M E T H O D S
+
+ATLAS_ALWAYS_INLINE const DvlController::DvlData &DvlController::GetLastData()
+    const ATLAS_NOEXCEPT {
+  return last_data_;
+}
 
 }  // namespace proc_navigation
 

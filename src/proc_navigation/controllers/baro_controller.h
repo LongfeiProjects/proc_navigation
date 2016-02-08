@@ -43,6 +43,10 @@ class BaroController : public StateController {
   using PtrList = std::vector<BaroController::Ptr>;
   using ConstPtrList = std::vector<BaroController::ConstPtr>;
 
+  struct BaroData {
+    double dt;
+  };
+
   //============================================================================
   // P U B L I C   C / D T O R S
 
@@ -53,13 +57,25 @@ class BaroController : public StateController {
   //============================================================================
   // P U B L I C   M E T H O D S
 
+  const BaroData &GetLastData() const ATLAS_NOEXCEPT;
+
  private:
   //============================================================================
   // P R I V A T E   M E T H O D S
 
   //============================================================================
   // P R I V A T E   M E M B E R S
+
+  BaroData last_data_;
 };
+
+//============================================================================
+// I N L I N E   M E T H O D S
+
+ATLAS_ALWAYS_INLINE const BaroController::BaroData &
+BaroController::GetLastData() const ATLAS_NOEXCEPT {
+  return last_data_;
+}
 
 }  // namespace proc_navigation
 

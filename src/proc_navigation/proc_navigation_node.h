@@ -69,6 +69,7 @@ class ProcNavigationNode {
   EkfConfiguration ekf_conf_;
   ExtendedKalmanFilter ekf_;
 };
-}
+
+}  // namespace proc_navigation
 
 #endif  // PROC_NAVIGATION_PROC_NAVIGATION_NODE_H_

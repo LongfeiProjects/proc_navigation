@@ -35,7 +35,8 @@
 
 namespace proc_navigation {
 
-class ExtendedKalmanFilter : public atlas::Observer<>, public atlas::Runnable,
+class ExtendedKalmanFilter : public atlas::Observer<>,
+                             public atlas::Runnable,
                              private EkfConfiguration {
  public:
   //==========================================================================

@@ -48,29 +48,27 @@ ExtendedKalmanFilter::~ExtendedKalmanFilter() ATLAS_NOEXCEPT {}
 //------------------------------------------------------------------------------
 //
 void ExtendedKalmanFilter::OnSubjectNotify(atlas::Subject<> &subject)
-ATLAS_NOEXCEPT {
- if(dynamic_cast<BaroController*>(&subject) != nullptr) {
-   UpdateBaroData();
- } else if (dynamic_cast<DvlController*>(&subject) != nullptr) {
-   UpdateDvlData();
- } else if (dynamic_cast<ImuController*>(&subject) != nullptr) {
-   UpdateImuData();
- }
+    ATLAS_NOEXCEPT {
+  if (dynamic_cast<BaroController *>(&subject) != nullptr) {
+    UpdateBaroData();
+  } else if (dynamic_cast<DvlController *>(&subject) != nullptr) {
+    UpdateDvlData();
+  } else if (dynamic_cast<ImuController *>(&subject) != nullptr) {
+    UpdateImuData();
+  }
 }
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::Initiate() {
-
-}
+void ExtendedKalmanFilter::Initiate() {}
 
 //------------------------------------------------------------------------------
 //
 void ExtendedKalmanFilter::Run() {
-  while(IsRunning()) {
-      if(new_data_ready_) {
-          std::lock_guard<std::mutex> guard(processing_mutex_);
-      }
+  while (IsRunning()) {
+    if (new_data_ready_) {
+      std::lock_guard<std::mutex> guard(processing_mutex_);
+    }
   }
 }
 

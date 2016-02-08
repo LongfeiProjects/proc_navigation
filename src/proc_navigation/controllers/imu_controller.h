@@ -43,6 +43,10 @@ class ImuController : public StateController {
   using PtrList = std::vector<ImuController::Ptr>;
   using ConstPtrList = std::vector<ImuController::ConstPtr>;
 
+  struct ImuData {
+    double dt;
+  };
+
   //============================================================================
   // P U B L I C   C / D T O R S
 
@@ -53,13 +57,25 @@ class ImuController : public StateController {
   //============================================================================
   // P U B L I C   M E T H O D S
 
+  const ImuData &GetLastData() const ATLAS_NOEXCEPT;
+
  private:
   //============================================================================
   // P R I V A T E   M E T H O D S
 
   //============================================================================
   // P R I V A T E   M E M B E R S
+
+  ImuData last_data_;
 };
+
+//============================================================================
+// I N L I N E   M E T H O D S
+
+ATLAS_ALWAYS_INLINE const ImuController::ImuData &ImuController::GetLastData()
+    const ATLAS_NOEXCEPT {
+  return last_data_;
+}
 
 }  // namespace proc_navigation
 

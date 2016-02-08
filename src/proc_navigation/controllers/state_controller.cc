@@ -32,7 +32,7 @@ namespace proc_navigation {
 
 //------------------------------------------------------------------------------
 //
-StateController::StateController() ATLAS_NOEXCEPT {}
+StateController::StateController(const ros::NodeHandlePtr &nh) ATLAS_NOEXCEPT {}
 
 //------------------------------------------------------------------------------
 //
@@ -43,5 +43,25 @@ StateController::~StateController() ATLAS_NOEXCEPT {}
 
 //------------------------------------------------------------------------------
 //
+double StateController::GetTimeDelta() const ATLAS_NOEXCEPT {
+  std::lock_guard<std::mutex> guard(time_mutex_);
+  return delta_t_;
+}
+
+//------------------------------------------------------------------------------
+//
+bool StateController::IsNewDataReady() const ATLAS_NOEXCEPT {
+  return new_data_ready_;
+}
+
+//------------------------------------------------------------------------------
+//
+void StateController::ReceivedNewData() ATLAS_NOEXCEPT {
+  new_data_ready_ = true;
+  std::lock_guard<std::mutex> guard(time_mutex_);
+  delta_t_ = timer.Time();
+  timer.Reset();
+  Notify();
+}
 
 }  // namespace proc_navigation

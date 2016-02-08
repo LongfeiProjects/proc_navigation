@@ -33,10 +33,9 @@ namespace proc_navigation {
 //-----------------------------------------------------------------------------
 //
 ProcNavigationNode::ProcNavigationNode(const ros::NodeHandlePtr &nh)
-ATLAS_NOEXCEPT
-    : nh_(nh),
-      ekf_conf_(nh_),
-      ekf_(ekf_conf_) {}
+    ATLAS_NOEXCEPT : nh_(nh),
+                     ekf_conf_(nh_),
+                     ekf_(ekf_conf_) {}
 
 //-----------------------------------------------------------------------------
 //

@@ -15,9 +15,9 @@ ekf/active_gravity : true
 # Is the measure of magnetometer activated
 ekf/active_mag : true
 # Is the measure of DVL activated
-ekf/active_dvl : true
+ekf/active_dvl : false
 # Is the measure of barometer activated
-ekf/active_baro : true
+ekf/active_baro : false
 
 # ********* Measure variances ***********
 
