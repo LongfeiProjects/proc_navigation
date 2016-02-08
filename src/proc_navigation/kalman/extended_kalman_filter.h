@@ -29,11 +29,14 @@
 #include <memory>
 #include <vector>
 #include <lib_atlas/macros.h>
+#include <lib_atlas/pattern/subject.h>
+#include <lib_atlas/pattern/runnable.h>
 #include "proc_navigation/kalman/ekf_configuration.h"
 
 namespace proc_navigation {
 
-class ExtendedKalmanFilter : private EkfConfiguration {
+class ExtendedKalmanFilter : public atlas::Observer<>, public atlas::Runnable,
+                             private EkfConfiguration {
  public:
   //==========================================================================
   // T Y P E D E F   A N D   E N U M
@@ -53,12 +56,48 @@ class ExtendedKalmanFilter : private EkfConfiguration {
   //==========================================================================
   // P U B L I C   M E T H O D S
 
+  void UpdateImuData() ATLAS_NOEXCEPT;
+  void UpdateDvlData() ATLAS_NOEXCEPT;
+  void UpdateBaroData() ATLAS_NOEXCEPT;
+
+  bool IsNewDataReady() const ATLAS_NOEXCEPT;
+
  private:
   //==========================================================================
   // P R I V A T E   M E T H O D S
 
+  /**
+   * The Initiate method will be called at the begginning of the system.
+   * It is the method that will set the inital velocity, accel, and variances.
+   * The time of the Initiate step is being set in the ekf_constants
+   * configuration file (Deserialized in EkFConfiguration).
+   */
+  void Initiate();
+
+  /**
+   * The Run method is the loop of the Kalman Filter. When a new data is ready,
+   * this will launch a new instance of the processing loop and compute the
+   * odometry data.
+   */
+  void Run() override;
+
+  void OnSubjectNotify(atlas::Subject<> &subject) ATLAS_NOEXCEPT override;
+
   //==========================================================================
   // P R I V A T E   M E M B E R S
+
+  /**
+   * State if a new data has came from on of the StateController.
+   * The loop will not run if no data is ready.
+   */
+  std::atomic<bool> new_data_ready_;
+
+  /**
+   * As we don't want to access the data if a proccessing loop instance is
+   * occuring, we will simply block th access to the data at any time during
+   * processing loop.
+   */
+  std::mutex processing_mutex_;
 };
 
 }  // namespace proc_navigation
