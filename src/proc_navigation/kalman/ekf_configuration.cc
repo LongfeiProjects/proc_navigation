@@ -1,0 +1,203 @@
+/**
+ * \file	ekf_configuration.cc
+ * \author	Thibaut Mattio <thibaut.mattio@gmail.com>
+ * \date	07/02/2016
+ *
+ * \copyright Copyright (c) 2015 S.O.N.I.A. All rights reserved.
+ *
+ * \section LICENSE
+ *
+ * This file is part of S.O.N.I.A. software.
+ *
+ * S.O.N.I.A. software is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * S.O.N.I.A. software is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with S.O.N.I.A. software. If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "proc_navigation/kalman/ekf_configuration.h"
+
+namespace proc_navigation {
+
+//==============================================================================
+// C / D T O R S   S E C T I O N
+
+//------------------------------------------------------------------------------
+//
+EkfConfiguration::EkfConfiguration(const ros::NodeHandlePtr &nh) ATLAS_NOEXCEPT
+    : t_init(0.5f),
+      active_gravity(true),
+      active_mag(true),
+      active_dvl(true),
+      active_baro(true),
+      sigma_meas_gravity(10.0f),
+      sigma_meas_mag(20.0f),
+      sigma_meas_dvl_x(3.0f),
+      sigma_meas_dvl_y(3.0f),
+      sigma_meas_dvl_z(5.0f),
+      sigma_meas_baro(10.0f),
+      sigma0_pos_x(0.01f),
+      sigma0_pos_y(0.01f),
+      sigma0_pos_z(0.01f),
+      sigma0_vel_x(0.01f),
+      sigma0_vel_y(0.01f),
+      sigma0_vel_z(0.01f),
+      sigma0_rho_x(0.01f),
+      sigma0_rho_y(0.01f),
+      sigma0_rho_z(0.01f),
+      sigma0_bias_acc(0.001f),
+      sigma0_bias_gyr(0.001f),
+      sigma0_bias_baro(0.001f),
+      sigma_meas_acc(10.f),
+      sigma_meas_gyr(0.01f),
+      sigma_bias_acc(0.001f),
+      sigma_bias_gyr(0.001f),
+      sigma_bias_baro(0.001f),
+      l_pd({0.0, 0.0, 0.15}),
+      l_pp({0.0, -0.10f, -0.5f}),
+      crit_station_acc(1.0f),
+      crit_station_norm(1.0f),
+      nh_(nh) {}
+
+//------------------------------------------------------------------------------
+//
+EkfConfiguration::EkfConfiguration(const EkfConfiguration &rhs) ATLAS_NOEXCEPT {
+  t_init = rhs.t_init;
+  active_gravity = rhs.active_gravity;
+  active_mag = rhs.active_mag;
+  active_dvl = rhs.active_dvl;
+  active_baro = rhs.active_baro;
+  sigma_meas_gravity = rhs.sigma_meas_gravity;
+  sigma_meas_mag = rhs.sigma_meas_mag;
+  sigma_meas_dvl_x = rhs.sigma_meas_dvl_x;
+  sigma_meas_dvl_y = rhs.sigma_meas_dvl_y;
+  sigma_meas_dvl_z = rhs.sigma_meas_dvl_z;
+  sigma_meas_baro = rhs.sigma_meas_baro;
+  sigma0_pos_x = rhs.sigma0_pos_x;
+  sigma0_pos_y = rhs.sigma0_pos_y;
+  sigma0_pos_z = rhs.sigma0_pos_z;
+  sigma0_vel_x = rhs.sigma0_vel_x;
+  sigma0_vel_y = rhs.sigma0_vel_y;
+  sigma0_vel_z = rhs.sigma0_vel_z;
+  sigma0_rho_x = rhs.sigma0_rho_x;
+  sigma0_rho_y = rhs.sigma0_rho_y;
+  sigma0_rho_z = rhs.sigma0_rho_z;
+  sigma0_bias_acc = rhs.sigma0_bias_acc;
+  sigma0_bias_gyr = rhs.sigma0_bias_gyr;
+  sigma0_bias_baro = rhs.sigma0_bias_baro;
+  sigma_meas_acc = rhs.sigma_meas_acc;
+  sigma_meas_gyr = rhs.sigma_meas_gyr;
+  sigma_bias_acc = rhs.sigma_bias_acc;
+  sigma_bias_gyr = rhs.sigma_bias_gyr;
+  sigma_bias_baro = rhs.sigma_bias_baro;
+  l_pd = rhs.l_pd;
+  l_pp = rhs.l_pp;
+  crit_station_acc = rhs.crit_station_acc;
+  crit_station_norm = rhs.crit_station_norm;
+  nh_ = rhs.nh_;
+}
+
+//------------------------------------------------------------------------------
+//
+EkfConfiguration::EkfConfiguration(EkfConfiguration &&rhs) ATLAS_NOEXCEPT {
+  t_init = rhs.t_init;
+  active_gravity = rhs.active_gravity;
+  active_mag = rhs.active_mag;
+  active_dvl = rhs.active_dvl;
+  active_baro = rhs.active_baro;
+  sigma_meas_gravity = rhs.sigma_meas_gravity;
+  sigma_meas_mag = rhs.sigma_meas_mag;
+  sigma_meas_dvl_x = rhs.sigma_meas_dvl_x;
+  sigma_meas_dvl_y = rhs.sigma_meas_dvl_y;
+  sigma_meas_dvl_z = rhs.sigma_meas_dvl_z;
+  sigma_meas_baro = rhs.sigma_meas_baro;
+  sigma0_pos_x = rhs.sigma0_pos_x;
+  sigma0_pos_y = rhs.sigma0_pos_y;
+  sigma0_pos_z = rhs.sigma0_pos_z;
+  sigma0_vel_x = rhs.sigma0_vel_x;
+  sigma0_vel_y = rhs.sigma0_vel_y;
+  sigma0_vel_z = rhs.sigma0_vel_z;
+  sigma0_rho_x = rhs.sigma0_rho_x;
+  sigma0_rho_y = rhs.sigma0_rho_y;
+  sigma0_rho_z = rhs.sigma0_rho_z;
+  sigma0_bias_acc = rhs.sigma0_bias_acc;
+  sigma0_bias_gyr = rhs.sigma0_bias_gyr;
+  sigma0_bias_baro = rhs.sigma0_bias_baro;
+  sigma_meas_acc = rhs.sigma_meas_acc;
+  sigma_meas_gyr = rhs.sigma_meas_gyr;
+  sigma_bias_acc = rhs.sigma_bias_acc;
+  sigma_bias_gyr = rhs.sigma_bias_gyr;
+  sigma_bias_baro = rhs.sigma_bias_baro;
+  l_pd = rhs.l_pd;
+  l_pp = rhs.l_pp;
+  crit_station_acc = rhs.crit_station_acc;
+  crit_station_norm = rhs.crit_station_norm;
+  nh_ = rhs.nh_;
+}
+
+//------------------------------------------------------------------------------
+//
+EkfConfiguration::~EkfConfiguration() ATLAS_NOEXCEPT {}
+
+//==============================================================================
+// M E T H O D   S E C T I O N
+
+//------------------------------------------------------------------------------
+//
+void EkfConfiguration::DeserializeConfiguration() ATLAS_NOEXCEPT {
+  FindParameter("t_init", t_init);
+  FindParameter("active_gravity", active_gravity);
+  FindParameter("active_mag", active_mag);
+  FindParameter("active_dvl", active_dvl);
+  FindParameter("active_baro", active_baro);
+  FindParameter("sigma_meas_gravity", sigma_meas_gravity);
+  FindParameter("sigma_meas_mag", sigma_meas_mag);
+  FindParameter("sigma_meas_dvl_x", sigma_meas_dvl_x);
+  FindParameter("sigma_meas_dvl_y", sigma_meas_dvl_y);
+  FindParameter("sigma_meas_dvl_z", sigma_meas_dvl_z);
+  FindParameter("sigma_meas_baro", sigma_meas_baro);
+  FindParameter("sigma0_pos_x", sigma0_pos_x);
+  FindParameter("sigma0_pos_y", sigma0_pos_y);
+  FindParameter("sigma0_pos_z", sigma0_pos_z);
+  FindParameter("sigma0_vel_x", sigma0_vel_x);
+  FindParameter("sigma0_vel_y", sigma0_vel_y);
+  FindParameter("sigma0_vel_z", sigma0_vel_z);
+  FindParameter("sigma0_rho_x", sigma0_rho_x);
+  FindParameter("sigma0_rho_y", sigma0_rho_y);
+  FindParameter("sigma0_rho_z", sigma0_rho_z);
+  FindParameter("sigma0_bias_acc", sigma0_bias_acc);
+  FindParameter("sigma0_bias_gyr", sigma0_bias_gyr);
+  FindParameter("sigma0_bias_baro", sigma0_bias_baro);
+  FindParameter("sigma_meas_acc", sigma_meas_acc);
+  FindParameter("sigma_meas_gyr", sigma_meas_gyr);
+  FindParameter("sigma_bias_acc", sigma_bias_acc);
+  FindParameter("sigma_bias_gyr", sigma_bias_gyr);
+  FindParameter("sigma_bias_baro", sigma_bias_baro);
+  FindParameter("l_pd", l_pd);
+  FindParameter("l_pp", l_pp);
+  FindParameter("crit_station_acc", crit_station_acc);
+  FindParameter("crit_station_norm", crit_station_norm);
+}
+
+//------------------------------------------------------------------------------
+//
+template <typename Tp_>
+void EkfConfiguration::FindParameter(const std::string &str,
+                                     Tp_ &p) ATLAS_NOEXCEPT {
+  if (nh_->hasParam("/ekf/" + str)) {
+    nh_->getParam("/ekf/" + str, p);
+  } else {
+    ROS_WARN_STREAM("Did not find /ekf/" << str
+                                         << ". Using default value instead.");
+  }
+}
+
+}  // namespace proc_navigation

@@ -1,5 +1,5 @@
 /**
- * \file	main.cc
+ * \file	navigation.cc
  * \author	Etienne Boudreault-Pilon <etienne.b.pilon@gmail.com>
  * \date	24/01/2016
  *
@@ -23,13 +23,33 @@
  * along with S.O.N.I.A. software. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <ros/ros.h>
+#include <std_msgs/String.h>
+#include <geometry_msgs/Pose.h>
 #include "proc_navigation/proc_navigation_node.h"
+#include "proc_navigation/kalman/extended_kalman_filter.h"
 
-int main(int argc, char** argv) {
-  ros::init(argc, argv, "proc_navigation_node");
-  ros::NodeHandlePtr nh(new ros::NodeHandle());
-  proc_navigation::ProcNavigationNode ph(nh);
-  ph.Spin();
-  return 0;
+namespace proc_navigation {
+
+//-----------------------------------------------------------------------------
+//
+ProcNavigationNode::ProcNavigationNode(const ros::NodeHandlePtr &nh)
+ATLAS_NOEXCEPT
+    : nh_(nh),
+      ekf_conf_(nh_),
+      ekf_(ekf_conf_) {}
+
+//-----------------------------------------------------------------------------
+//
+ProcNavigationNode::~ProcNavigationNode() ATLAS_NOEXCEPT {}
+
+//-----------------------------------------------------------------------------
+//
+void ProcNavigationNode::Spin() ATLAS_NOEXCEPT {
+  while (!ros::isShuttingDown()) {
+    while (nh_->ok()) {
+      ros::spinOnce();
+    }
+  }
 }
+
+}  // namespace proc_navigation

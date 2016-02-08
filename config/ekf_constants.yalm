@@ -1,0 +1,65 @@
+# File containing all the Extended Kalamn Filter constants.
+# This is going to be used during system initialization as well as update.
+# The values of the constants have been tuned very precisly, please be carefull
+# changing the constants.
+
+# ********* Timings and Rates ***********
+
+# The time of the initialisation step
+ekf/t_init : 0.5
+
+# ********* Control and Tuning ***********
+
+# Is the measure of gravity activated
+ekf/active_gravity : true
+# Is the measure of magnetometer activated
+ekf/active_mag : true
+# Is the measure of DVL activated
+ekf/active_dvl : true
+# Is the measure of barometer activated
+ekf/active_baro : true
+
+# ********* Measure variances ***********
+
+# Gravity measurements variances
+ekf/sigma_meas_gravity : 10.0
+# Magneto measurements variances
+ekf/sigma_meas_mag : 20.0
+# DVL measurements variances
+ekf/sigma_meas_dvl_x : 3.0
+ekf/sigma_meas_dvl_y : 3.0
+ekf/sigma_meas_dvl_z : 5.0
+# Baro measurements variances
+ekf/sigma_meas_baro : 10.0
+
+# Kalman initialization states uncertainty
+ekf/sigma0_pos_x : 0.01
+ekf/sigma0_pos_y : 0.01
+ekf/sigma0_pos_z : 0.01
+ekf/sigma0_vel_x : 0.01
+ekf/sigma0_vel_y : 0.01
+ekf/sigma0_vel_z : 0.01
+ekf/sigma0_rho_x : 0.01
+ekf/sigma0_rho_y : 0.01
+ekf/sigma0_rho_z : 0.01
+ekf/sigma0_bias_acc : 0.001
+ekf/sigma0_bias_gyr : 0.001
+ekf/sigma0_bias_baro : 0.001
+
+# Propagation uncertainty
+ekf/sigma_meas_acc : 10
+ekf/sigma_meas_gyr : 0.01
+ekf/sigma_bias_acc : 0.001
+ekf/sigma_bias_gyr : 0.001
+ekf/sigma_bias_baro : 0.001
+
+# ********* AUV Physics ***********
+
+# Distance frmo IMU to devices in body frame (NED)
+ekf/l_pd: [0.0, 0.0, 0.15] # IMU - DVL
+ekf/l_pp: [0.0, -0.10, -0.5] # IMU - DVL
+
+# ********* Stationnary State Detection ***********
+
+ekf/crit_station_acc: 1.0
+ekf/crit_station_norm: 1.0

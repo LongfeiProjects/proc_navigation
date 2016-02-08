@@ -1,0 +1,113 @@
+/**
+ * \file	ekf_configuration.h
+ * \author	Thibaut Mattio <thibaut.mattio@gmail.com>
+ * \date	07/02/2016
+ *
+ * \copyright Copyright (c) 2015 S.O.N.I.A. All rights reserved.
+ *
+ * \section LICENSE
+ *
+ * This file is part of S.O.N.I.A. software.
+ *
+ * S.O.N.I.A. software is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * S.O.N.I.A. software is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with S.O.N.I.A. software. If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#ifndef PROC_NAVIGATION_KALMAN_EKF_CONFIGURATION_H_
+#define PROC_NAVIGATION_KALMAN_EKF_CONFIGURATION_H_
+
+#include <memory>
+#include <vector>
+#include <ros/ros.h>
+#include <lib_atlas/macros.h>
+
+namespace proc_navigation {
+
+class EkfConfiguration {
+ public:
+  //============================================================================
+  // T Y P E D E F   A N D   E N U M
+
+  using Ptr = std::shared_ptr<EkfConfiguration>;
+  using ConstPtr = std::shared_ptr<const EkfConfiguration>;
+  using PtrList = std::vector<EkfConfiguration::Ptr>;
+  using ConstPtrList = std::vector<EkfConfiguration::ConstPtr>;
+
+  //============================================================================
+  // P U B L I C   C / D T O R S
+
+  EkfConfiguration(const ros::NodeHandlePtr &nh) ATLAS_NOEXCEPT;
+
+  /**
+   * We want to define copy constructor here for optimization purpose.
+   * Do not copy the members if is a rvalue.
+   */
+  EkfConfiguration(const EkfConfiguration &rhs) ATLAS_NOEXCEPT;
+  EkfConfiguration(EkfConfiguration &&rhs) ATLAS_NOEXCEPT;
+
+  virtual ~EkfConfiguration() ATLAS_NOEXCEPT;
+
+  //============================================================================
+  // P U B L I C   M E M B E R S
+
+  float t_init;
+  bool active_gravity;
+  bool active_mag;
+  bool active_dvl;
+  bool active_baro;
+  float sigma_meas_gravity;
+  float sigma_meas_mag;
+  float sigma_meas_dvl_x;
+  float sigma_meas_dvl_y;
+  float sigma_meas_dvl_z;
+  float sigma_meas_baro;
+  float sigma0_pos_x;
+  float sigma0_pos_y;
+  float sigma0_pos_z;
+  float sigma0_vel_x;
+  float sigma0_vel_y;
+  float sigma0_vel_z;
+  float sigma0_rho_x;
+  float sigma0_rho_y;
+  float sigma0_rho_z;
+  float sigma0_bias_acc;
+  float sigma0_bias_gyr;
+  float sigma0_bias_baro;
+  float sigma_meas_acc;
+  float sigma_meas_gyr;
+  float sigma_bias_acc;
+  float sigma_bias_gyr;
+  float sigma_bias_baro;
+  std::vector<float> l_pd;
+  std::vector<float> l_pp;
+  float crit_station_acc;
+  float crit_station_norm;
+
+ private:
+  //============================================================================
+  // P R I V A T E   M E T H O D S
+
+  void DeserializeConfiguration() ATLAS_NOEXCEPT;
+
+  template <typename Tp_>
+  void FindParameter(const std::string &str, Tp_ &p) ATLAS_NOEXCEPT;
+
+  //============================================================================
+  // P R I V A T E   M E M B E R S
+
+  ros::NodeHandlePtr nh_;
+};
+
+}  // namespace proc_navigation
+
+#endif  // PROC_NAVIGATION_KALMAN_EKF_CONFIGURATION_H_

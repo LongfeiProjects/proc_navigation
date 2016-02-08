@@ -1,5 +1,7 @@
 <launch>
-  <node pkg="proc_navigation" type="proc_navigation_node" name="proc_navigation_node" output="screen">
-    <param name="mode"  type="int" value="1" />
-  </node>
+  <!-- Create a proc_navigation node -->
+  <node pkg="proc_navigation" type="proc_navigation_node" name="proc_navigation_node" output="screen"/>
+
+  <!-- Load parameters for the scanline parser-->
+  <rosparam command="load" file="$(find proc_navigation)/config/ekf_constants.yaml"/>
 </launch>

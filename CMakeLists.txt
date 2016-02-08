@@ -46,23 +46,34 @@ find_package(
     catkin REQUIRED COMPONENTS
     roscpp
     std_msgs
-    message_generation
-    provider_dvl
-    sonia_msgs
     geometry_msgs
-        sensor_msgs
+    sensor_msgs
+    message_generation
     lib_atlas
+    sonia_msgs
+    provider_dvl
+    provider_imu
+    provider_can
 )
 
-add_message_files(
-    DIRECTORY msg
-    FILES
-)
+find_package(catkin REQUIRED cmake_modules)
+find_package(Eigen REQUIRED)
 
 catkin_package(
     INCLUDE_DIRS ${proc_navigation_SRC_DIR}
     LIBRARIES
-    CATKIN_DEPENDS roscpp message_runtime std_msgs provider_dvl lib_atlas sonia_msgs
+    CATKIN_DEPENDS
+    roscpp
+    std_msgs
+    geometry_msgs
+    sensor_msgs
+    message_runtime
+    lib_atlas
+    sonia_msgs
+    provider_dvl
+    provider_imu
+    provider_can
+    DEPENDS Eigen
 )
 
 #===============================================================================
@@ -77,6 +88,7 @@ list(REMOVE_ITEM proc_navigation_FILES
 
 include_directories(
     ${catkin_INCLUDE_DIRS}
+    ${Eigen_INCLUDE_DIRS}
     ${proc_navigation_SRC_DIR}
     ${lib_atlas_INCLUDE_DIRS}
     ${provider_dvl_INCLUDE_DIRS}
@@ -85,9 +97,11 @@ include_directories(
 #==========================================================================
 # C R E A T E   E X E C U T A B L E
 
-add_executable(${PROJECT_NAME}_node ${proc_navigation_SRC_DIR}/${PROJECT_NAME}/main.cc ${proc_navigation_FILES})
-target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${lib_atlas_LIBRARIES})
-add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME}_generate_messages_cpp sonia_msgs_generate_messages_cpp)
+add_executable(${PROJECT_NAME}_node
+    ${proc_navigation_SRC_DIR}/${PROJECT_NAME}/main.cc ${proc_navigation_FILES})
+target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES}
+    ${lib_atlas_LIBRARIES} ${Eigen_LIBRARIES})
+add_dependencies(${PROJECT_NAME}_node sonia_msgs_generate_messages_cpp)
 
 #==========================================================================
 # U N I T   T E S T S

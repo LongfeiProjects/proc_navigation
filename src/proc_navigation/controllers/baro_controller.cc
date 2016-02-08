@@ -1,7 +1,7 @@
 /**
- * \file	main.cc
- * \author	Etienne Boudreault-Pilon <etienne.b.pilon@gmail.com>
- * \date	24/01/2016
+ * \file	baro_controller.cc
+ * \author	Thibaut Mattio <thibaut.mattio@gmail.com>
+ * \date	07/02/2016
  *
  * \copyright Copyright (c) 2015 S.O.N.I.A. All rights reserved.
  *
@@ -23,13 +23,25 @@
  * along with S.O.N.I.A. software. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <ros/ros.h>
-#include "proc_navigation/proc_navigation_node.h"
+#include "proc_navigation/controllers/baro_controller.h"
 
-int main(int argc, char** argv) {
-  ros::init(argc, argv, "proc_navigation_node");
-  ros::NodeHandlePtr nh(new ros::NodeHandle());
-  proc_navigation::ProcNavigationNode ph(nh);
-  ph.Spin();
-  return 0;
-}
+namespace proc_navigation {
+
+//==============================================================================
+// C / D T O R S   S E C T I O N
+
+//------------------------------------------------------------------------------
+//
+BaroController::BaroController() ATLAS_NOEXCEPT {}
+
+//------------------------------------------------------------------------------
+//
+BaroController::~BaroController() ATLAS_NOEXCEPT {}
+
+//==============================================================================
+// M E T H O D   S E C T I O N
+
+//------------------------------------------------------------------------------
+//
+
+}  // namespace proc_navigation
