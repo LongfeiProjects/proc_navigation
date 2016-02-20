@@ -63,3 +63,12 @@ ekf/l_pp: [0.0, -0.10, -0.5] # IMU - DVL
 
 ekf/crit_station_acc: 1.0
 ekf/crit_station_norm: 1.0
+
+# ********* Signs of devices measures ***********
+# According to the device orientation, the sign can change, set the values here
+device_sign/imu/x: -1
+device_sign/imu/y: 1
+device_sign/imu/z: 1
+device_sign/mag/x: 1
+device_sign/mag/y: -1
+device_sign/mag/z: -1

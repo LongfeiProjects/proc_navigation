@@ -60,6 +60,7 @@ class EkfConfiguration {
   //============================================================================
   // P U B L I C   M E M B E R S
 
+  // The constants for the tuning of the Kalman filter
   float t_init;
   bool active_gravity;
   bool active_mag;
@@ -92,6 +93,14 @@ class EkfConfiguration {
   std::vector<float> l_pp;
   float crit_station_acc;
   float crit_station_norm;
+
+  // Values of the coefficients given the orientation of the devices
+  int imu_sign_x;
+  int imu_sign_y;
+  int imu_sign_z;
+  int mag_sign_x;
+  int mag_sign_y;
+  int mag_sign_z;
 
  private:
   //============================================================================

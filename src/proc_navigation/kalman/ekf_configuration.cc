@@ -65,6 +65,12 @@ EkfConfiguration::EkfConfiguration(const ros::NodeHandlePtr &nh) ATLAS_NOEXCEPT
       l_pp({0.0, -0.10f, -0.5f}),
       crit_station_acc(1.0f),
       crit_station_norm(1.0f),
+     imu_sign_x(-1),
+     imu_sign_y(1),
+     imu_sign_z(1),
+     mag_sign_x(1),
+     mag_sign_y(-1),
+     mag_sign_z(-1),
       nh_(nh) {}
 
 //------------------------------------------------------------------------------
@@ -102,6 +108,12 @@ EkfConfiguration::EkfConfiguration(const EkfConfiguration &rhs) ATLAS_NOEXCEPT {
   l_pp = rhs.l_pp;
   crit_station_acc = rhs.crit_station_acc;
   crit_station_norm = rhs.crit_station_norm;
+  imu_sign_x = rhs.imu_sign_x;
+      imu_sign_y = rhs.imu_sign_y;
+      imu_sign_z = rhs.imu_sign_z;
+      mag_sign_x = rhs.mag_sign_x;
+      mag_sign_y = rhs.mag_sign_y;
+      mag_sign_z = rhs.mag_sign_z;
   nh_ = rhs.nh_;
 }
 
@@ -140,6 +152,12 @@ EkfConfiguration::EkfConfiguration(EkfConfiguration &&rhs) ATLAS_NOEXCEPT {
   l_pp = rhs.l_pp;
   crit_station_acc = rhs.crit_station_acc;
   crit_station_norm = rhs.crit_station_norm;
+  imu_sign_x = rhs.imu_sign_x;
+  imu_sign_y = rhs.imu_sign_y;
+  imu_sign_z = rhs.imu_sign_z;
+  mag_sign_x = rhs.mag_sign_x;
+  mag_sign_y = rhs.mag_sign_y;
+  mag_sign_z = rhs.mag_sign_z;
   nh_ = rhs.nh_;
 }
 
@@ -153,38 +171,44 @@ EkfConfiguration::~EkfConfiguration() ATLAS_NOEXCEPT {}
 //------------------------------------------------------------------------------
 //
 void EkfConfiguration::DeserializeConfiguration() ATLAS_NOEXCEPT {
-  FindParameter("t_init", t_init);
-  FindParameter("active_gravity", active_gravity);
-  FindParameter("active_mag", active_mag);
-  FindParameter("active_dvl", active_dvl);
-  FindParameter("active_baro", active_baro);
-  FindParameter("sigma_meas_gravity", sigma_meas_gravity);
-  FindParameter("sigma_meas_mag", sigma_meas_mag);
-  FindParameter("sigma_meas_dvl_x", sigma_meas_dvl_x);
-  FindParameter("sigma_meas_dvl_y", sigma_meas_dvl_y);
-  FindParameter("sigma_meas_dvl_z", sigma_meas_dvl_z);
-  FindParameter("sigma_meas_baro", sigma_meas_baro);
-  FindParameter("sigma0_pos_x", sigma0_pos_x);
-  FindParameter("sigma0_pos_y", sigma0_pos_y);
-  FindParameter("sigma0_pos_z", sigma0_pos_z);
-  FindParameter("sigma0_vel_x", sigma0_vel_x);
-  FindParameter("sigma0_vel_y", sigma0_vel_y);
-  FindParameter("sigma0_vel_z", sigma0_vel_z);
-  FindParameter("sigma0_rho_x", sigma0_rho_x);
-  FindParameter("sigma0_rho_y", sigma0_rho_y);
-  FindParameter("sigma0_rho_z", sigma0_rho_z);
-  FindParameter("sigma0_bias_acc", sigma0_bias_acc);
-  FindParameter("sigma0_bias_gyr", sigma0_bias_gyr);
-  FindParameter("sigma0_bias_baro", sigma0_bias_baro);
-  FindParameter("sigma_meas_acc", sigma_meas_acc);
-  FindParameter("sigma_meas_gyr", sigma_meas_gyr);
-  FindParameter("sigma_bias_acc", sigma_bias_acc);
-  FindParameter("sigma_bias_gyr", sigma_bias_gyr);
-  FindParameter("sigma_bias_baro", sigma_bias_baro);
-  FindParameter("l_pd", l_pd);
-  FindParameter("l_pp", l_pp);
-  FindParameter("crit_station_acc", crit_station_acc);
-  FindParameter("crit_station_norm", crit_station_norm);
+  FindParameter("/ekf/t_init", t_init);
+  FindParameter("/ekf/active_gravity", active_gravity);
+  FindParameter("/ekf/active_mag", active_mag);
+  FindParameter("/ekf/active_dvl", active_dvl);
+  FindParameter("/ekf/active_baro", active_baro);
+  FindParameter("/ekf/sigma_meas_gravity", sigma_meas_gravity);
+  FindParameter("/ekf/sigma_meas_mag", sigma_meas_mag);
+  FindParameter("/ekf/sigma_meas_dvl_x", sigma_meas_dvl_x);
+  FindParameter("/ekf/sigma_meas_dvl_y", sigma_meas_dvl_y);
+  FindParameter("/ekf/sigma_meas_dvl_z", sigma_meas_dvl_z);
+  FindParameter("/ekf/sigma_meas_baro", sigma_meas_baro);
+  FindParameter("/ekf/sigma0_pos_x", sigma0_pos_x);
+  FindParameter("/ekf/sigma0_pos_y", sigma0_pos_y);
+  FindParameter("/ekf/sigma0_pos_z", sigma0_pos_z);
+  FindParameter("/ekf/sigma0_vel_x", sigma0_vel_x);
+  FindParameter("/ekf/sigma0_vel_y", sigma0_vel_y);
+  FindParameter("/ekf/sigma0_vel_z", sigma0_vel_z);
+  FindParameter("/ekf/sigma0_rho_x", sigma0_rho_x);
+  FindParameter("/ekf/sigma0_rho_y", sigma0_rho_y);
+  FindParameter("/ekf/sigma0_rho_z", sigma0_rho_z);
+  FindParameter("/ekf/sigma0_bias_acc", sigma0_bias_acc);
+  FindParameter("/ekf/sigma0_bias_gyr", sigma0_bias_gyr);
+  FindParameter("/ekf/sigma0_bias_baro", sigma0_bias_baro);
+  FindParameter("/ekf/sigma_meas_acc", sigma_meas_acc);
+  FindParameter("/ekf/sigma_meas_gyr", sigma_meas_gyr);
+  FindParameter("/ekf/sigma_bias_acc", sigma_bias_acc);
+  FindParameter("/ekf/sigma_bias_gyr", sigma_bias_gyr);
+  FindParameter("/ekf/sigma_bias_baro", sigma_bias_baro);
+  FindParameter("/ekf/l_pd", l_pd);
+  FindParameter("/ekf/l_pp", l_pp);
+  FindParameter("/ekf/crit_station_acc", crit_station_acc);
+  FindParameter("/ekf/crit_station_norm", crit_station_norm);
+  FindParameter("/device_sign/imu/x", imu_sign_x);
+  FindParameter("/device_sign/imu/y", imu_sign_y);
+  FindParameter("/device_sign/imu/z", imu_sign_z);
+  FindParameter("/device_sign/mag/x", mag_sign_x);
+  FindParameter("/device_sign/mag/y", mag_sign_y);
+  FindParameter("/device_sign/mag/z", mag_sign_z);
 }
 
 //------------------------------------------------------------------------------
@@ -192,10 +216,10 @@ void EkfConfiguration::DeserializeConfiguration() ATLAS_NOEXCEPT {
 template <typename Tp_>
 void EkfConfiguration::FindParameter(const std::string &str,
                                      Tp_ &p) ATLAS_NOEXCEPT {
-  if (nh_->hasParam("/ekf/" + str)) {
-    nh_->getParam("/ekf/" + str, p);
+  if (nh_->hasParam(str)) {
+    nh_->getParam(str, p);
   } else {
-    ROS_WARN_STREAM("Did not find /ekf/" << str
+    ROS_WARN_STREAM("Did not find " << str
                                          << ". Using default value instead.");
   }
 }
