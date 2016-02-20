@@ -47,6 +47,14 @@ class ExtendedKalmanFilter : public atlas::Observer<>,
   using PtrList = std::vector<ExtendedKalmanFilter::Ptr>;
   using ConstPtrList = std::vector<ExtendedKalmanFilter::ConstPtr>;
 
+  struct InitialState {
+    double ge;
+    double roll;
+    double pitch;
+    double yaw;
+    Eigen::Matrix3d r_b2w;
+  };
+
   //==========================================================================
   // P U B L I C   C / D T O R S
 
@@ -84,6 +92,10 @@ class ExtendedKalmanFilter : public atlas::Observer<>,
 
   void OnSubjectNotify(atlas::Subject<> &subject) ATLAS_NOEXCEPT override;
 
+  void CalculateImuMeans(const std::array<std::vector<double>, 3> &g) ATLAS_NOEXCEPT;
+
+  void CalculateMagMeans(const std::array<std::vector<double>, 3> &m) ATLAS_NOEXCEPT;
+
   //==========================================================================
   // P R I V A T E   M E M B E R S
 
@@ -92,6 +104,17 @@ class ExtendedKalmanFilter : public atlas::Observer<>,
    * The loop will not run if no data is ready.
    */
   std::atomic<bool> new_data_ready_;
+
+  /**
+   * This is the timer that run during the init time.
+   * The value of this timer is going to be compared to the configuration init
+   * time value.
+   * When the timer hits the init time, the processing of the parallel thread
+   * starts.
+   */
+  atlas::MicroTimer init_timer_;
+
+  InitialState init_state_;
 
   /**
    * As we don't want to access the data if a proccessing loop instance is

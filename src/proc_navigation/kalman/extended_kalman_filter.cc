@@ -23,6 +23,8 @@
  * along with S.O.N.I.A. software. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <eigen3/Eigen/Eigen>
+#include <lib_atlas/maths/stats.h>
 #include "proc_navigation/controllers/baro_controller.h"
 #include "proc_navigation/controllers/dvl_controller.h"
 #include "proc_navigation/controllers/imu_controller.h"
@@ -36,7 +38,10 @@ namespace proc_navigation {
 //------------------------------------------------------------------------------
 //
 ExtendedKalmanFilter::ExtendedKalmanFilter(const EkfConfiguration &conf)
-    ATLAS_NOEXCEPT : EkfConfiguration(conf) {}
+    ATLAS_NOEXCEPT : EkfConfiguration(conf),
+                     new_data_ready_(false),
+                     init_timer_(),
+                     processing_mutex_() {}
 
 //------------------------------------------------------------------------------
 //
@@ -60,7 +65,65 @@ void ExtendedKalmanFilter::OnSubjectNotify(atlas::Subject<> &subject)
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::Initiate() {}
+void ExtendedKalmanFilter::Initiate() {
+  init_timer_.Start();
+
+  // The vectors of interest for the initilization states.
+  std::array<std::vector<double>, 3> g;
+  std::array<std::vector<double>, 3> m;
+
+  while(init_timer_.MicroSeconds() < t_init) {
+    if()
+  }
+
+  CalculateImuMeans(g);
+  CalculateMagMeans(m);
+
+  // The initialization is finished, start the Kalman filter here
+  Start();
+}
+
+//------------------------------------------------------------------------------
+//
+void ExtendedKalmanFilter::CalculateImuMeans(const std::array<std::vector<double>,
+                                                              3> &g) ATLAS_NOEXCEPT {
+  // WARN: Attention should be paid to the values of this vector.
+  // If the IMU is inverted, there will be a -1 factor.
+  Eigen::Vector3d g_mean;
+  g_mean(0) = imu_sign_x * atlas::Mean(std::get<0>(g));
+  g_mean(1) = imu_sign_y * atlas::Mean(std::get<1>(g));
+  g_mean(2) = imu_sign_z * atlas::Mean(std::get<2>(g));
+  init_state_.ge = g_mean.norm();
+
+  // Calculate initial roll angle - Equation 10.14 - Farrell
+  init_state_.roll = std::atan2(g_mean(1), g_mean(2));
+
+  // Calculate initial roll angle - Equation 10.15 - Farrell
+  init_state_.pitch = std::atan2(-g_mean(0), std::sqrt(g_mean(1)*g_mean(1) + g_mean(2)*g_mean(2)));
+
+  // Calculate rotation matrix - Equation 10.16 - Farrell
+  // The row index is passed first on a Eigen::Matrix, for more info, see:
+  // http://eigen.tuxfamily.org/dox-devel/group__TutorialMatrixClass.html#title4
+  init_state_.r_b2w(0, 0) = std::cos(init_state_.pitch);
+  init_state_.r_b2w(0, 1) = std::sin(init_state_.pitch)*std::sin(init_state_.roll);
+  init_state_.r_b2w(0, 2) = std::sin(init_state_.pitch)*std::cos(init_state_.roll);
+  init_state_.r_b2w(1, 0) = 0;
+  init_state_.r_b2w(1, 1) = std::cos(init_state_.roll);
+  init_state_.r_b2w(1, 2) = -std::sin(init_state_.roll);
+  init_state_.r_b2w(2, 0) = -std::sin(init_state_.pitch);
+  init_state_.r_b2w(2, 1) = std::cos(init_state_.pitch)*std::sin(init_state_.roll);
+  init_state_.r_b2w(2, 2) = std::cos(init_state_.pitch)*std::cos(init_state_.roll);
+}
+
+//------------------------------------------------------------------------------
+//
+void ExtendedKalmanFilter::CalculateMagMeans(const std::array<std::vector<double>,
+                                                              3> &m) ATLAS_NOEXCEPT {
+  Eigen::Vector3d m_mean;
+  m_mean(0) = atlas::Mean(std::get<0>(m));
+  m_mean(1) = atlas::Mean(std::get<1>(m));
+  m_mean(2) = atlas::Mean(std::get<2>(m));
+}
 
 //------------------------------------------------------------------------------
 //
