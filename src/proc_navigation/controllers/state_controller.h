@@ -103,7 +103,7 @@ class StateController : public atlas::Subject<> {
 
   std::mutex time_mutex_;
   double delta_t_;
-  atlas::MicroTimer timer;
+  atlas::MicroTimer timer_;
 
   std::atomic<bool> new_data_ready_;
 };

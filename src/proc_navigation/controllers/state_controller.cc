@@ -59,8 +59,8 @@ bool StateController::IsNewDataReady() const ATLAS_NOEXCEPT {
 void StateController::ReceivedNewData() ATLAS_NOEXCEPT {
   new_data_ready_ = true;
   std::lock_guard<std::mutex> guard(time_mutex_);
-  delta_t_ = timer.Time();
-  timer.Reset();
+  delta_t_ = timer_.Time();
+  timer_.Reset();
   Notify();
 }
 
