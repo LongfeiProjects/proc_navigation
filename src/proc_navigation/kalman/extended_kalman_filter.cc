@@ -51,6 +51,7 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(
                                                    qc_(),
                                                    p0_(),
                                                    x_(),
+                                                   is_stationnary_(false),
                                                    ge_() {
   // Initialize the Kalman filter here
   Initialize();
@@ -197,7 +198,25 @@ void ExtendedKalmanFilter::Run() {
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::UpdateImuData() ATLAS_NOEXCEPT {
+void ExtendedKalmanFilter::Mechanization() ATLAS_NOEXCEPT {
+  std::lock_guard<std::mutex> guard(processing_mutex_);
+}
+
+//------------------------------------------------------------------------------
+//
+void ExtendedKalmanFilter::ErrorsDynamicModelCalculation() ATLAS_NOEXCEPT {
+  std::lock_guard<std::mutex> guard(processing_mutex_);
+}
+
+//------------------------------------------------------------------------------
+//
+void ExtendedKalmanFilter::KalmanStatesCovariancePropagation() ATLAS_NOEXCEPT {
+  std::lock_guard<std::mutex> guard(processing_mutex_);
+}
+
+//------------------------------------------------------------------------------
+//
+void ExtendedKalmanFilter::UpdateGravityData() ATLAS_NOEXCEPT {
   std::lock_guard<std::mutex> guard(processing_mutex_);
 }
 
