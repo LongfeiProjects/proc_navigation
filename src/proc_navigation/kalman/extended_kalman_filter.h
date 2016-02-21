@@ -77,9 +77,24 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration {
 
   struct ExtraStates {
     Eigen::Matrix3d r_n_b;
+    Eigen::Matrix3d r_b_n;
+    Eigen::Vector3d euler; // roll, pitch, yaw
     Eigen::Vector3d w_ib_b;
     Eigen::Vector3d vel_b;
     double baro_bias;
+  };
+
+  struct KalmanMatrix {
+    Eigen::Matrix<double, 13, 13> qc_;
+    Eigen::Matrix<double, 16, 16> p_;
+    Eigen::Matrix<double, 16, 16> f_;
+    Eigen::Matrix<double, 16, 13> g_;
+  };
+
+  struct Criterions {
+    double ufw;
+    double ufab;
+    double ufan;
   };
 
   //==========================================================================
@@ -96,15 +111,15 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration {
   //==========================================================================
   // P U B L I C   M E T H O D S
 
-  void Mechanization(Eigen::Vector3d f_b,
-                     double dt) ATLAS_NOEXCEPT;
+  void Mechanization( Eigen::Vector3d f_b,
+                      double dt ) ATLAS_NOEXCEPT;
   void ErrorsDynamicModelCalculation() ATLAS_NOEXCEPT;
-  void KalmanStatesCovariancePropagation() ATLAS_NOEXCEPT;
+  void KalmanStatesCovariancePropagation( double dt ) ATLAS_NOEXCEPT;
 
-  void UpdateGravityData() ATLAS_NOEXCEPT;
-  void UpdateDvlData() ATLAS_NOEXCEPT;
-  void UpdateBaroData() ATLAS_NOEXCEPT;
-  void UpdateMagData() ATLAS_NOEXCEPT;
+  void UpdateGravity( Eigen::Vector3d f_b ) ATLAS_NOEXCEPT;
+  void UpdateMag() ATLAS_NOEXCEPT;
+  void UpdateDvl() ATLAS_NOEXCEPT;
+  void UpdateBaro() ATLAS_NOEXCEPT;
 
   bool IsNewDataReady() const ATLAS_NOEXCEPT;
 
@@ -171,8 +186,8 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration {
   States states_;
   KalmanStates kalman_states_;
   ExtraStates extra_states_;
-  Eigen::Matrix<double, 13, 13> qc_;
-  Eigen::Matrix<double, 16, 16> p_;
+  KalmanMatrix kalman_matrix_;
+  Criterions criterions_;
 
   /*
    * Stationnary and static states

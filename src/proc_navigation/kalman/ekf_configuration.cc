@@ -39,7 +39,7 @@ EkfConfiguration::EkfConfiguration(const ros::NodeHandlePtr &nh) ATLAS_NOEXCEPT
       active_dvl(true),
       active_baro(true),
       sigma_meas_gravity(10.0f),
-      sigma_meas_mag(20.0f),
+      sigma_meas_mag(5.0f),
       sigma_meas_dvl_x(3.0f),
       sigma_meas_dvl_y(3.0f),
       sigma_meas_dvl_z(5.0f),

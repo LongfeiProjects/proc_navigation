@@ -24,7 +24,7 @@
 # Gravity measurements variances
 /proc_navigation/ekf/sigma_meas_gravity : 10.0
 # Magneto measurements variances
-/proc_navigation/ekf/sigma_meas_mag : 20.0
+/proc_navigation/ekf/sigma_meas_mag : 5.0
 # DVL measurements variances
 /proc_navigation/ekf/sigma_meas_dvl_x : 3.0
 /proc_navigation/ekf/sigma_meas_dvl_y : 3.0
