@@ -64,7 +64,7 @@ ATLAS_ALWAYS_INLINE void StateController<Tp_>::Callback(const Tp_ &msg)
 //------------------------------------------------------------------------------
 //
 template <class Tp_>
-ATLAS_ALWAYS_INLINE const Tp_ &StateController<Tp_>::GetLastData() const
+ATLAS_ALWAYS_INLINE const Tp_ &StateController<Tp_>::GetLastData()
     ATLAS_NOEXCEPT {
   new_data_ready_ = false;
   return last_data_;

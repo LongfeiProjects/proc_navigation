@@ -57,7 +57,7 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration {
   using ImuMessage = sensor_msgs::Imu::Ptr;
   using MagMessage = sensor_msgs::MagneticField::Ptr;
 
-  struct State {
+  struct States {
     Eigen::Vector3d pos_n;
     Eigen::Vector3d vel_n;
     Eigen::Quaterniond b;
@@ -66,8 +66,21 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration {
     double baro_bias;
   };
 
-  Eigen::Vector3d w_ib_b;
-  Eigen::Vector3d vel_b;
+  struct KalmanStates {
+    Eigen::Vector3d d_pos_n;
+    Eigen::Vector3d d_vel_n;
+    Eigen::Vector3d rho;
+    Eigen::Vector3d d_acc_bias;
+    Eigen::Vector3d d_gyro_bias;
+    double d_baro_bias;
+  };
+
+  struct ExtraStates {
+    Eigen::Matrix3d r_n_b;
+    Eigen::Vector3d w_ib_b;
+    Eigen::Vector3d vel_b;
+    double baro_bias;
+  };
 
   //==========================================================================
   // P U B L I C   C / D T O R S
@@ -83,7 +96,8 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration {
   //==========================================================================
   // P U B L I C   M E T H O D S
 
-  void Mechanization() ATLAS_NOEXCEPT;
+  void Mechanization(Eigen::Vector3d f_b,
+                     double dt) ATLAS_NOEXCEPT;
   void ErrorsDynamicModelCalculation() ATLAS_NOEXCEPT;
   void KalmanStatesCovariancePropagation() ATLAS_NOEXCEPT;
 
@@ -151,14 +165,14 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration {
   atlas::MicroTimer timer_;
 
   /**
-   * The initial state of the kalman filter.
+   * The initial state and states of the kalman filter.
    * The values of the states are set after the initialization step.
    */
-  State x0_;
+  States states_;
+  KalmanStates kalman_states_;
+  ExtraStates extra_states_;
   Eigen::Matrix<double, 13, 13> qc_;
-  Eigen::Matrix<double, 16, 16> p0_;
-
-  State x_;
+  Eigen::Matrix<double, 16, 16> p_;
 
   /*
    * Stationnary and static states
@@ -169,6 +183,8 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration {
    * Estimation of the gravitationnal vector with the magnetometer.
    */
   double ge_;
+
+  Eigen::Vector3d g_n_;
 };
 
 }  // namespace proc_navigation

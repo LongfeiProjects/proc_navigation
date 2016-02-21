@@ -47,12 +47,14 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(
                                                    dvl_(dvl),
                                                    processing_mutex_(),
                                                    init_timer_(),
-                                                   x0_(),
+                                                   states_(),
+                                                   kalman_states_(),
+                                                   extra_states_(),
                                                    qc_(),
-                                                   p0_(),
-                                                   x_(),
+                                                   p_(),
                                                    is_stationnary_(false),
-                                                   ge_() {
+                                                   ge_(),
+                                                   g_n_(){
   // Initialize the Kalman filter here
   Initialize();
 
@@ -80,13 +82,14 @@ void ExtendedKalmanFilter::Initialize() {
     // Check if there is new data here and add to the vectors
   }
 
-  x0_.pos_n = Eigen::Vector3d(0, 0, 0);
-  x0_.vel_n = Eigen::Vector3d(0, 0, 0);
-  x0_.b = CalculateInitialRotationMatrix(g, m);
-  x0_.acc_bias = Eigen::Vector3d(0, 0, 0);
-  x0_.gyro_bias = Eigen::Vector3d(0, 0, 0);
-  x0_.baro_bias = 0;
+  states_.pos_n = Eigen::Vector3d(0, 0, 0);
+  states_.vel_n = Eigen::Vector3d(0, 0, 0);
+  states_.b = CalculateInitialRotationMatrix(g, m);
+  states_.acc_bias = Eigen::Vector3d(0, 0, 0);
+  states_.gyro_bias = Eigen::Vector3d(0, 0, 0);
+  states_.baro_bias = 0;
 
+  qc_ = Eigen::Matrix<double,13,13>::Zero(13,13);
   qc_(0, 0) = sigma_meas_acc;
   qc_(1, 1) = sigma_meas_acc;
   qc_(2, 2) = sigma_meas_acc;
@@ -101,22 +104,23 @@ void ExtendedKalmanFilter::Initialize() {
   qc_(11, 11) = sigma_walk_bias_gyr;
   qc_(12, 12) = sigma_walk_bias_baro;
 
-  p0_(0, 0) = sigma0_pos_x;
-  p0_(1, 1) = sigma0_pos_y;
-  p0_(2, 2) = sigma0_pos_z;
-  p0_(3, 3) = sigma0_vel_x;
-  p0_(4, 4) = sigma0_vel_y;
-  p0_(5, 5) = sigma0_vel_z;
-  p0_(6, 6) = sigma0_rho_x;
-  p0_(7, 7) = sigma0_rho_y;
-  p0_(8, 8) = sigma0_rho_z;
-  p0_(9, 9) = sigma0_bias_acc;
-  p0_(10, 10) = sigma0_bias_acc;
-  p0_(11, 11) = sigma0_bias_acc;
-  p0_(12, 12) = sigma0_bias_gyr;
-  p0_(13, 13) = sigma0_bias_gyr;
-  p0_(14, 14) = sigma0_bias_gyr;
-  p0_(15, 15) = sigma0_bias_baro;
+  p_ = Eigen::Matrix<double,16,16>::Zero(16,16);
+  p_(0, 0) = sigma0_pos_x;
+  p_(1, 1) = sigma0_pos_y;
+  p_(2, 2) = sigma0_pos_z;
+  p_(3, 3) = sigma0_vel_x;
+  p_(4, 4) = sigma0_vel_y;
+  p_(5, 5) = sigma0_vel_z;
+  p_(6, 6) = sigma0_rho_x;
+  p_(7, 7) = sigma0_rho_y;
+  p_(8, 8) = sigma0_rho_z;
+  p_(9, 9) = sigma0_bias_acc;
+  p_(10, 10) = sigma0_bias_acc;
+  p_(11, 11) = sigma0_bias_acc;
+  p_(12, 12) = sigma0_bias_gyr;
+  p_(13, 13) = sigma0_bias_gyr;
+  p_(14, 14) = sigma0_bias_gyr;
+  p_(15, 15) = sigma0_bias_baro;
 }
 
 //------------------------------------------------------------------------------
@@ -131,6 +135,7 @@ Eigen::Quaterniond ExtendedKalmanFilter::CalculateInitialRotationMatrix(
   g_mean(1) = -imu_sign_y * atlas::Mean(std::get<1>(g));
   g_mean(2) = -imu_sign_z * atlas::Mean(std::get<2>(g));
   ge_ = g_mean.norm();
+  g_n_ = Eigen::Vector3d(0,0,ge_);
 
   // Calculate initial roll angle - Equation 10.14 - Farrell
   double roll = std::atan2(g_mean(1), g_mean(2));
@@ -177,11 +182,11 @@ Eigen::Quaterniond ExtendedKalmanFilter::CalculateInitialRotationMatrix(
   r0_bn(2, 1) = std::sin(roll) * std::cos(pitch);
   r0_bn(2, 2) = std::cos(roll) * std::cos(pitch);
 
-  Eigen::Matrix3d r0_nb = r0_bn.transpose();
+  extra_states_.r_n_b = r0_bn.transpose();
 
   // The eigen quaternion is taking a rotation matrix as constructor parameter
   // for its initilization.
-  return Eigen::Quaterniond(r0_nb);
+  return Eigen::Quaterniond(extra_states_.r_n_b);
 }
 
 //------------------------------------------------------------------------------
@@ -192,14 +197,45 @@ void ExtendedKalmanFilter::Run() {
       std::lock_guard<std::mutex> guard(processing_mutex_);
       double dt = timer_.Time();
       timer_.Reset();
+
+      auto imu_msg = imu_->GetLastData();
+
+      Eigen::Vector3d acc_raw_data;
+      acc_raw_data(0) = imu_msg->linear_acceleration.x;
+      acc_raw_data(1) = imu_msg->linear_acceleration.y;
+      acc_raw_data(2) = imu_msg->linear_acceleration.z;
+
+      Eigen::Vector3d f_b = acc_raw_data - states_.acc_bias;
+
+      Eigen::Vector3d gyr_raw_data;
+      gyr_raw_data(0) = imu_msg->angular_velocity.x;
+      gyr_raw_data(1) = imu_msg->angular_velocity.y;
+      gyr_raw_data(2) = imu_msg->angular_velocity.z;
+
+      extra_states_.w_ib_b = gyr_raw_data - states_.gyro_bias;
+
+      // states_.b = exact_quat(states_.w_ib_b,dt,states_.b);
+      extra_states_.r_n_b = Eigen::Matrix3d(states_.b);
+
+      Mechanization(f_b, dt);
+
     }
   }
 }
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::Mechanization() ATLAS_NOEXCEPT {
+void ExtendedKalmanFilter::Mechanization(Eigen::Vector3d f_b, double dt) ATLAS_NOEXCEPT {
   std::lock_guard<std::mutex> guard(processing_mutex_);
+
+  Eigen::Matrix3d r_b_n = extra_states_.r_n_b.transpose();
+
+  Eigen::Vector3d p_dot_n = states_.vel_n;
+
+  Eigen::Vector3d v_dot_n = r_b_n*f_b + g_n_;
+
+  states_.pos_n = states_.pos_n + p_dot_n*dt;
+  states_.vel_n = states_.vel_n + v_dot_n*dt;
 }
 
 //------------------------------------------------------------------------------

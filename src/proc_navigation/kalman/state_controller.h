@@ -77,7 +77,7 @@ class StateController {
 
   bool IsNewDataReady() const ATLAS_NOEXCEPT;
 
-  const Tp_ &GetLastData() const ATLAS_NOEXCEPT;
+  const Tp_ &GetLastData() ATLAS_NOEXCEPT;
 
   void Callback(const Tp_ &msg) ATLAS_NOEXCEPT;
 
