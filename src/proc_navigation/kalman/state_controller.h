@@ -49,20 +49,31 @@ namespace proc_navigation {
  * depend on the child. No template usage is requiered here as the observer
  * will have to dynamic cast the message anyway...
  */
+template <class Tp_>
 class StateController : public atlas::Subject<> {
  public:
   //============================================================================
   // T Y P E D E F   A N D   E N U M
 
-  using Ptr = std::shared_ptr<StateController>;
-  using ConstPtr = std::shared_ptr<const StateController>;
+  using Ptr = std::shared_ptr<StateController<Tp_>>;
+  using ConstPtr = std::shared_ptr<const StateController<Tp_>>;
   using PtrList = std::vector<StateController::Ptr>;
   using ConstPtrList = std::vector<StateController::ConstPtr>;
+
+  struct StampedData {
+    Tp_ msg;
+    double dt;
+  };
 
   //============================================================================
   // P U B L I C   C / D T O R S
 
-  explicit StateController(const ros::NodeHandlePtr &) ATLAS_NOEXCEPT;
+  /**
+   * Receiving the node handle as well as the configuration name for the topic
+   * (NOT the topic name itself)
+   */
+  explicit StateController(const ros::NodeHandlePtr &,
+                           const std::string &conf_name) ATLAS_NOEXCEPT;
 
   virtual ~StateController() ATLAS_NOEXCEPT;
 
@@ -71,42 +82,26 @@ class StateController : public atlas::Subject<> {
 
   bool IsNewDataReady() const ATLAS_NOEXCEPT;
 
- protected:
-  //============================================================================
-  // P R O T E C T E D   M E T H O D S
+  const StampedData &GetLastData() const ATLAS_NOEXCEPT;
 
-  /**
-   * This accessor returns the time between two measurments.
-   * The method is set protected to prevent the user to access the delta_t.
-   * If the user access the delta_t that is not associated with its current
-   * data, it will create unwanted behavior. Prefer instead creating a structure
-   * of the information you want the user to have and send it when you have a
-   * new information available.
-   */
-  double GetTimeDelta() ATLAS_NOEXCEPT;
-
-  /**
-   * This method will handle the behavior of a StateController when a new data
-   * comes. It will update the elapsed time for the data and alert the
-   * observers.
-   * The parsing of the data has to be done by children
-   */
-  void ReceivedNewData() ATLAS_NOEXCEPT;
+  void Callback(const Tp_ &msg) ATLAS_NOEXCEPT;
 
  private:
-  //============================================================================
-  // P R I V A T E   M E T H O D S
-
   //============================================================================
   // P R I V A T E   M E M B E R S
 
   std::mutex time_mutex_;
-  double delta_t_;
   atlas::MicroTimer timer_;
+  StampedData last_data_;
 
   std::atomic<bool> new_data_ready_;
+
+  ros::NodeHandlePtr nh_;
+  ros::Subscriber subscriber_;
 };
 
 }  // namespace proc_navigation
+
+#include "proc_navigation/kalman/state_controller_inl.h"
 
 #endif  // PROC_NAVIGATION_CONTROLLER_STATE_CONTROLLER_H_

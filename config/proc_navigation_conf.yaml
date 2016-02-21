@@ -1,0 +1,9 @@
+# File contains the configuration for the proc_navigation node.
+# For instance, it sets the name of the subscribed topic and other useful conf.
+
+# ********* Topic Names ***********
+
+/proc_navigation/topics/baro: "/provider_can/barometer/pressure"
+/proc_navigation/topics/dvl: "/provider_dvl/twist"
+/proc_navigation/topics/imu: "/provider_imu/imu"
+/proc_navigation/topics/mag: "/provider_imu/mag"

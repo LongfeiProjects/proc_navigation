@@ -33,9 +33,19 @@ namespace proc_navigation {
 //-----------------------------------------------------------------------------
 //
 ProcNavigationNode::ProcNavigationNode(const ros::NodeHandlePtr &nh)
-    ATLAS_NOEXCEPT : nh_(nh),
-                     ekf_conf_(nh_),
-                     ekf_(ekf_conf_) {}
+    ATLAS_NOEXCEPT
+    : nh_(nh),
+      ekf_conf_(nh_),
+      baro_(
+          std::make_shared<StateController<ExtendedKalmanFilter::BaroMessage>>(
+              nh_, ekf_conf_.baro_topic)),
+      imu_(std::make_shared<StateController<ExtendedKalmanFilter::ImuMessage>>(
+          nh_, ekf_conf_.imu_topic)),
+      mag_(std::make_shared<StateController<ExtendedKalmanFilter::MagMessage>>(
+          nh_, ekf_conf_.mag_topic)),
+      dvl_(std::make_shared<StateController<ExtendedKalmanFilter::DvlMessage>>(
+          nh_, ekf_conf_.dvl_topic)),
+      ekf_(baro_, imu_, mag_, dvl_, nh_) {}
 
 //-----------------------------------------------------------------------------
 //

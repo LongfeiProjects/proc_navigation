@@ -25,9 +25,6 @@
 
 #include <eigen3/Eigen/Eigen>
 #include <lib_atlas/maths.h>
-#include "proc_navigation/controllers/baro_controller.h"
-#include "proc_navigation/controllers/dvl_controller.h"
-#include "proc_navigation/controllers/imu_controller.h"
 #include "proc_navigation/kalman/extended_kalman_filter.h"
 
 namespace proc_navigation {
@@ -37,18 +34,25 @@ namespace proc_navigation {
 
 //------------------------------------------------------------------------------
 //
-ExtendedKalmanFilter::ExtendedKalmanFilter(const EkfConfiguration &conf)
-    ATLAS_NOEXCEPT : atlas::Observer<>(),
-                     atlas::Runnable(),
-                     EkfConfiguration(conf),
-                     processing_mutex_(),
-                     new_data_ready_(false),
-                     init_timer_(),
-                     x0_(),
-                     qc_(),
-                     p0_(),
-                     x_(),
-                     ge_() {
+ExtendedKalmanFilter::ExtendedKalmanFilter(
+    const StateController<BaroMessage>::Ptr &baro,
+    const StateController<ImuMessage>::Ptr &imu,
+    const StateController<MagMessage>::Ptr &mag,
+    const StateController<DvlMessage>::Ptr &dvl,
+    const EkfConfiguration &conf) ATLAS_NOEXCEPT : atlas::Observer<>(),
+                                                   atlas::Runnable(),
+                                                   EkfConfiguration(conf),
+                                                   baro_(baro),
+                                                   imu_(imu),
+                                                   mag_(mag),
+                                                   dvl_(dvl),
+                                                   processing_mutex_(),
+                                                   init_timer_(),
+                                                   x0_(),
+                                                   qc_(),
+                                                   p0_(),
+                                                   x_(),
+                                                   ge_() {
   // Initialize the Kalman filter here
   Initialize();
 
@@ -67,11 +71,16 @@ ExtendedKalmanFilter::~ExtendedKalmanFilter() ATLAS_NOEXCEPT {}
 //
 void ExtendedKalmanFilter::OnSubjectNotify(atlas::Subject<> &subject)
     ATLAS_NOEXCEPT {
-  if (dynamic_cast<BaroController *>(&subject) != nullptr && active_baro) {
+  if (dynamic_cast<StateController<BaroMessage> *>(&subject) != nullptr &&
+      active_baro) {
     UpdateBaroData();
-  } else if (dynamic_cast<DvlController *>(&subject) != nullptr && active_dvl) {
+  } else if (dynamic_cast<StateController<DvlMessage> *>(&subject) != nullptr &&
+             active_dvl) {
     UpdateDvlData();
-  } else if (dynamic_cast<ImuController *>(&subject) != nullptr && active_mag) {
+  } else if (dynamic_cast<StateController<MagMessage> *>(&subject) != nullptr &&
+             active_mag) {
+    UpdateMagData();
+  } else if (dynamic_cast<StateController<ImuMessage> *>(&subject) != nullptr) {
     UpdateImuData();
   }
 }
@@ -197,7 +206,7 @@ Eigen::Quaterniond ExtendedKalmanFilter::CalculateInitialRotationMatrix(
 //
 void ExtendedKalmanFilter::Run() {
   while (IsRunning()) {
-    if (new_data_ready_) {
+    if (IsNewDataReady()) {
       std::lock_guard<std::mutex> guard(processing_mutex_);
     }
   }
@@ -207,27 +216,31 @@ void ExtendedKalmanFilter::Run() {
 //
 void ExtendedKalmanFilter::UpdateImuData() ATLAS_NOEXCEPT {
   std::lock_guard<std::mutex> guard(processing_mutex_);
-  // TODO Thibaut Mattio: Get the IMU data here
 }
 
 //------------------------------------------------------------------------------
 //
 void ExtendedKalmanFilter::UpdateDvlData() ATLAS_NOEXCEPT {
   std::lock_guard<std::mutex> guard(processing_mutex_);
-  // TODO Thibaut Mattio: Get the DVL data here
 }
 
 //------------------------------------------------------------------------------
 //
 void ExtendedKalmanFilter::UpdateBaroData() ATLAS_NOEXCEPT {
   std::lock_guard<std::mutex> guard(processing_mutex_);
-  // TODO Thibaut Mattio: Get the Baro data here
+}
+
+//------------------------------------------------------------------------------
+//
+void ExtendedKalmanFilter::UpdateMagData() ATLAS_NOEXCEPT {
+  std::lock_guard<std::mutex> guard(processing_mutex_);
 }
 
 //------------------------------------------------------------------------------
 //
 bool ExtendedKalmanFilter::IsNewDataReady() const ATLAS_NOEXCEPT {
-  return new_data_ready_;
+  return baro_->IsNewDataReady() || imu_->IsNewDataReady() ||
+         dvl_->IsNewDataReady() || mag_->IsNewDataReady();
 }
 
 }  // namespace proc_navigation

@@ -67,6 +67,12 @@ class ProcNavigationNode {
   ros::NodeHandlePtr nh_;
 
   EkfConfiguration ekf_conf_;
+
+  StateController<ExtendedKalmanFilter::BaroMessage>::Ptr baro_;
+  StateController<ExtendedKalmanFilter::ImuMessage>::Ptr imu_;
+  StateController<ExtendedKalmanFilter::MagMessage>::Ptr mag_;
+  StateController<ExtendedKalmanFilter::DvlMessage>::Ptr dvl_;
+
   ExtendedKalmanFilter ekf_;
 };
 

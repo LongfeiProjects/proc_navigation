@@ -71,6 +71,10 @@ EkfConfiguration::EkfConfiguration(const ros::NodeHandlePtr &nh) ATLAS_NOEXCEPT
       mag_sign_x(1),
       mag_sign_y(-1),
       mag_sign_z(-1),
+      baro_topic("/provider_can/barometer/pressure"),
+      dvl_topic("/provider_dvl/twist"),
+      imu_topic("/provider_imu/imu"),
+      mag_topic("/provider_imu/mag"),
       nh_(nh) {}
 
 //------------------------------------------------------------------------------
@@ -225,10 +229,11 @@ void EkfConfiguration::DeserializeConfiguration() ATLAS_NOEXCEPT {
 template <typename Tp_>
 void EkfConfiguration::FindParameter(const std::string &str,
                                      Tp_ &p) ATLAS_NOEXCEPT {
-  if (nh_->hasParam(str)) {
-    nh_->getParam(str, p);
+  if (nh_->hasParam("/proc_navigation" + str)) {
+    nh_->getParam("/proc_navigation" + str, p);
   } else {
-    ROS_WARN_STREAM("Did not find " << str << ". Using default value instead.");
+    ROS_WARN_STREAM("Did not find /proc_navigation" + str
+                    << ". Using default value instead.");
   }
 }
 

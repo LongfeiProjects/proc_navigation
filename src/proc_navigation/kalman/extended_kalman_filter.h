@@ -28,12 +28,17 @@
 
 #include <memory>
 #include <vector>
+#include <std_msgs/Float64.h>
+#include <geometry_msgs/TwistWithCovarianceStamped.h>
+#include <sensor_msgs/Imu.h>
+#include <sensor_msgs/MagneticField.h>
 #include <eigen3/Eigen/Eigen>
 #include <lib_atlas/macros.h>
 #include <lib_atlas/pattern/subject.h>
 #include <lib_atlas/pattern/runnable.h>
 #include <lib_atlas/sys/timer.h>
 #include "proc_navigation/kalman/ekf_configuration.h"
+#include "proc_navigation/kalman/state_controller.h"
 
 namespace proc_navigation {
 
@@ -49,6 +54,11 @@ class ExtendedKalmanFilter : public atlas::Observer<>,
   using PtrList = std::vector<ExtendedKalmanFilter::Ptr>;
   using ConstPtrList = std::vector<ExtendedKalmanFilter::ConstPtr>;
 
+  using BaroMessage = std_msgs::Float64::Ptr;
+  using DvlMessage = geometry_msgs::TwistWithCovarianceStamped::Ptr;
+  using ImuMessage = sensor_msgs::Imu::Ptr;
+  using MagMessage = sensor_msgs::MagneticField::Ptr;
+
   struct State {
     Eigen::Vector3d pos;
     Eigen::Vector3d vel;
@@ -61,7 +71,11 @@ class ExtendedKalmanFilter : public atlas::Observer<>,
   //==========================================================================
   // P U B L I C   C / D T O R S
 
-  explicit ExtendedKalmanFilter(const EkfConfiguration &conf) ATLAS_NOEXCEPT;
+  explicit ExtendedKalmanFilter(const StateController<BaroMessage>::Ptr &baro,
+                                const StateController<ImuMessage>::Ptr &imu,
+                                const StateController<MagMessage>::Ptr &mag,
+                                const StateController<DvlMessage>::Ptr &dvl,
+                                const EkfConfiguration &conf) ATLAS_NOEXCEPT;
 
   ~ExtendedKalmanFilter() ATLAS_NOEXCEPT;
 
@@ -71,6 +85,7 @@ class ExtendedKalmanFilter : public atlas::Observer<>,
   void UpdateImuData() ATLAS_NOEXCEPT;
   void UpdateDvlData() ATLAS_NOEXCEPT;
   void UpdateBaroData() ATLAS_NOEXCEPT;
+  void UpdateMagData() ATLAS_NOEXCEPT;
 
   bool IsNewDataReady() const ATLAS_NOEXCEPT;
 
@@ -103,17 +118,20 @@ class ExtendedKalmanFilter : public atlas::Observer<>,
   // P R I V A T E   M E M B E R S
 
   /**
+   * State if a new data has came from on of the StateController.
+   * The loop will not run if no data is ready.
+   */
+  StateController<BaroMessage>::Ptr baro_;
+  StateController<ImuMessage>::Ptr imu_;
+  StateController<MagMessage>::Ptr mag_;
+  StateController<DvlMessage>::Ptr dvl_;
+
+  /**
    * As we don't want to access the data if a proccessing loop instance is
    * occuring, we will simply block th access to the data at any time during
    * processing loop.
    */
   std::mutex processing_mutex_;
-
-  /**
-   * State if a new data has came from on of the StateController.
-   * The loop will not run if no data is ready.
-   */
-  std::atomic<bool> new_data_ready_;
 
   /**
    * This is the timer that run during the init time.

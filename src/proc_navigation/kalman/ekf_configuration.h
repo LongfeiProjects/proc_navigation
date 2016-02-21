@@ -103,6 +103,12 @@ class EkfConfiguration {
   int mag_sign_y;
   int mag_sign_z;
 
+  // Values for the topics
+  std::string baro_topic;
+  std::string dvl_topic;
+  std::string imu_topic;
+  std::string mag_topic;
+
  private:
   //============================================================================
   // P R I V A T E   M E T H O D S
