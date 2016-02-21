@@ -52,7 +52,9 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(
                                                    qc_(),
                                                    p0_(),
                                                    x_(),
-                                                   ge_() {
+                                                   ge_(),
+                                                   isStationnary(false)
+{
   // Initialize the Kalman filter here
   Initialize();
 
@@ -72,7 +74,7 @@ ExtendedKalmanFilter::~ExtendedKalmanFilter() ATLAS_NOEXCEPT { }
 void ExtendedKalmanFilter::OnSubjectNotify(atlas::Subject<> &subject)
 ATLAS_NOEXCEPT {
   if (dynamic_cast<StateController<ImuMessage> *>(&subject) != nullptr) {
-    UpdateImuData();
+    Propagation();
   }
 }
 
@@ -198,16 +200,40 @@ Eigen::Quaterniond ExtendedKalmanFilter::CalculateInitialRotationMatrix(
 void ExtendedKalmanFilter::Run() {
   while (IsRunning()) {
     if (IsNewDataReady()) {
-      // Propagation
-      // if IsNewdatardy -> update
       std::lock_guard<std::mutex> guard(processing_mutex_);
+
+      auto imu_msg = imu_->GetLastData();
+
+      Eigen::Vector3d f_b;
+
+
+
     }
   }
 }
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::UpdateImuData() ATLAS_NOEXCEPT {
+void ExtendedKalmanFilter::Mechanization() ATLAS_NOEXCEPT {
+  std::lock_guard<std::mutex> guard(processing_mutex_);
+
+}
+
+//------------------------------------------------------------------------------
+//
+void ExtendedKalmanFilter::ErrorsDynamicModelCalculation() ATLAS_NOEXCEPT {
+  std::lock_guard<std::mutex> guard(processing_mutex_);
+}
+
+//------------------------------------------------------------------------------
+//
+void ExtendedKalmanFilter::KalmanStatesCovariancePropagation() ATLAS_NOEXCEPT {
+  std::lock_guard<std::mutex> guard(processing_mutex_);
+}
+
+//------------------------------------------------------------------------------
+//
+void ExtendedKalmanFilter::updateGravityData() ATLAS_NOEXCEPT {
   std::lock_guard<std::mutex> guard(processing_mutex_);
 }
 

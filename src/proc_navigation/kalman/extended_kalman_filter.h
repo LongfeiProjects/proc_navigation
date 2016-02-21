@@ -82,7 +82,12 @@ class ExtendedKalmanFilter : public atlas::Observer<>,
   //==========================================================================
   // P U B L I C   M E T H O D S
 
-  void UpdateImuData() ATLAS_NOEXCEPT;
+  void Mechanization() ATLAS_NOEXCEPT;
+  void ErrorsDynamicModelCalculation() ATLAS_NOEXCEPT;
+  void KalmanStatesCovariancePropagation() ATLAS_NOEXCEPT;
+
+
+  void updateGravityData() ATLAS_NOEXCEPT;
   void UpdateDvlData() ATLAS_NOEXCEPT;
   void UpdateBaroData() ATLAS_NOEXCEPT;
   void UpdateMagData() ATLAS_NOEXCEPT;
@@ -151,6 +156,11 @@ class ExtendedKalmanFilter : public atlas::Observer<>,
   Eigen::Matrix<double, 16, 16> p0_;
 
   State x_;
+
+  /*
+   * Stationnary and static states
+   */
+  bool isStationnary;
 
   /**
    * Estimation of the gravitationnal vector with the magnetometer.
