@@ -1,7 +1,10 @@
 <launch>
-  <!-- Create a proc_navigation node -->
-  <node pkg="proc_navigation" type="proc_navigation_node" name="proc_navigation_node" output="screen"/>
+  <node name="proc_navigation_node"
+      pkg="proc_navigation"
+      type="proc_navigation_node"
+	  output="log"
+	  launch-prefix="gdb -ex run --args" />
 
-  <!-- Load parameters for the scanline parser-->
   <rosparam command="load" file="$(find proc_navigation)/config/ekf_constants.yaml"/>
+  <rosparam command="load" file="$(find proc_navigation)/config/proc_navigatinon_conf.yaml"/>
 </launch>
