@@ -147,8 +147,8 @@ class ExtendedKalmanFilter : public atlas::Observer<>,
    * The values of the states are set after the initialization step.
    */
   State x0_;
-  Eigen::Matrix<double, 13, 1> qc_;
-  Eigen::Matrix<double, 13, 1> p0_;
+  Eigen::Matrix<double, 13, 13> qc_;
+  Eigen::Matrix<double, 16, 16> p0_;
 
   State x_;
 
