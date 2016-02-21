@@ -49,15 +49,13 @@ class ExtendedKalmanFilter : public atlas::Observer<>,
   using PtrList = std::vector<ExtendedKalmanFilter::Ptr>;
   using ConstPtrList = std::vector<ExtendedKalmanFilter::ConstPtr>;
 
-  struct InitialState {
-    double ge;
-    double roll;
-    double pitch;
-    double yaw;
-    Eigen::Matrix3d r_b2w;
-    Eigen::Matrix3d r0_bn;
-    Eigen::Matrix3d r0_nb;
-    Eigen::Quaterniond b0;
+  struct State {
+    Eigen::Vector3d pos;
+    Eigen::Vector3d vel;
+    Eigen::Quaterniond b;
+    Eigen::Vector3d acc_bias;
+    Eigen::Vector3d gyro_bias;
+    double baro_bias;
   };
 
   //==========================================================================
@@ -86,7 +84,7 @@ class ExtendedKalmanFilter : public atlas::Observer<>,
    * The time of the Initiate step is being set in the ekf_constants
    * configuration file (Deserialized in EkFConfiguration).
    */
-  void Initiate();
+  void Initialize();
 
   /**
    * The Run method is the loop of the Kalman Filter. When a new data is ready,
@@ -97,14 +95,19 @@ class ExtendedKalmanFilter : public atlas::Observer<>,
 
   void OnSubjectNotify(atlas::Subject<> &subject) ATLAS_NOEXCEPT override;
 
-  void CalculateImuMeans(const std::array<std::vector<double>, 3> &g)
-      ATLAS_NOEXCEPT;
-
-  void CalculateMagMeans(const std::array<std::vector<double>, 3> &m)
-      ATLAS_NOEXCEPT;
+  Eigen::Quaterniond CalculateInitialRotationMatrix(
+      const std::array<std::vector<double>, 3> &g,
+      const std::array<std::vector<double>, 3> &m) ATLAS_NOEXCEPT;
 
   //==========================================================================
   // P R I V A T E   M E M B E R S
+
+  /**
+   * As we don't want to access the data if a proccessing loop instance is
+   * occuring, we will simply block th access to the data at any time during
+   * processing loop.
+   */
+  std::mutex processing_mutex_;
 
   /**
    * State if a new data has came from on of the StateController.
@@ -121,14 +124,20 @@ class ExtendedKalmanFilter : public atlas::Observer<>,
    */
   atlas::MicroTimer init_timer_;
 
-  InitialState init_;
+  /**
+   * The initial state of the kalman filter.
+   * The values of the states are set after the initialization step.
+   */
+  State x0_;
+  Eigen::Matrix<double, 13, 1> qc_;
+  Eigen::Matrix<double, 13, 1> p0_;
+
+  State x_;
 
   /**
-   * As we don't want to access the data if a proccessing loop instance is
-   * occuring, we will simply block th access to the data at any time during
-   * processing loop.
+   * Estimation of the gravitationnal vector with the magnetometer.
    */
-  std::mutex processing_mutex_;
+  double ge_;
 };
 
 }  // namespace proc_navigation

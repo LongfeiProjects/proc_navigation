@@ -58,9 +58,9 @@ EkfConfiguration::EkfConfiguration(const ros::NodeHandlePtr &nh) ATLAS_NOEXCEPT
       sigma0_bias_baro(0.001f),
       sigma_meas_acc(10.f),
       sigma_meas_gyr(0.01f),
-      sigma_bias_acc(0.001f),
-      sigma_bias_gyr(0.001f),
-      sigma_bias_baro(0.001f),
+      sigma_walk_bias_acc(0.001f),
+      sigma_walk_bias_gyr(0.001f),
+      sigma_walk_bias_baro(0.001f),
       l_pd({0.0, 0.0, 0.15}),
       l_pp({0.0, -0.10f, -0.5f}),
       crit_station_acc(1.0f),
@@ -101,9 +101,9 @@ EkfConfiguration::EkfConfiguration(const EkfConfiguration &rhs) ATLAS_NOEXCEPT {
   sigma0_bias_baro = rhs.sigma0_bias_baro;
   sigma_meas_acc = rhs.sigma_meas_acc;
   sigma_meas_gyr = rhs.sigma_meas_gyr;
-  sigma_bias_acc = rhs.sigma_bias_acc;
-  sigma_bias_gyr = rhs.sigma_bias_gyr;
-  sigma_bias_baro = rhs.sigma_bias_baro;
+  sigma_walk_bias_acc = rhs.sigma_walk_bias_acc;
+  sigma_walk_bias_gyr = rhs.sigma_walk_bias_gyr;
+  sigma_walk_bias_baro = rhs.sigma_walk_bias_baro;
   l_pd = rhs.l_pd;
   l_pp = rhs.l_pp;
   crit_station_acc = rhs.crit_station_acc;
@@ -145,9 +145,9 @@ EkfConfiguration::EkfConfiguration(EkfConfiguration &&rhs) ATLAS_NOEXCEPT {
   sigma0_bias_baro = rhs.sigma0_bias_baro;
   sigma_meas_acc = rhs.sigma_meas_acc;
   sigma_meas_gyr = rhs.sigma_meas_gyr;
-  sigma_bias_acc = rhs.sigma_bias_acc;
-  sigma_bias_gyr = rhs.sigma_bias_gyr;
-  sigma_bias_baro = rhs.sigma_bias_baro;
+  sigma_walk_bias_acc = rhs.sigma_walk_bias_acc;
+  sigma_walk_bias_gyr = rhs.sigma_walk_bias_gyr;
+  sigma_walk_bias_baro = rhs.sigma_walk_bias_baro;
   l_pd = rhs.l_pd;
   l_pp = rhs.l_pp;
   crit_station_acc = rhs.crit_station_acc;
@@ -196,11 +196,9 @@ void EkfConfiguration::DeserializeConfiguration() ATLAS_NOEXCEPT {
   FindParameter("/ekf/sigma0_bias_baro", sigma0_bias_baro);
   FindParameter("/ekf/sigma_meas_acc", sigma_meas_acc);
   FindParameter("/ekf/sigma_meas_gyr", sigma_meas_gyr);
-  FindParameter("/ekf/sigma_bias_acc", sigma_bias_acc);
-  FindParameter("/ekf/sigma_bias_gyr", sigma_bias_gyr);
-  FindParameter("/ekf/sigma_bias_baro", sigma_bias_baro);
-  FindParameter("/ekf/l_pd", l_pd);
-  FindParameter("/ekf/l_pp", l_pp);
+  FindParameter("/ekf/sigma_walk_bias_acc", sigma_walk_bias_acc);
+  FindParameter("/ekf/sigma_walk_bias_gyr", sigma_walk_bias_gyr);
+  FindParameter("/ekf/sigma_walk_bias_baro", sigma_walk_bias_baro);
   FindParameter("/ekf/crit_station_acc", crit_station_acc);
   FindParameter("/ekf/crit_station_norm", crit_station_norm);
   FindParameter("/device_sign/imu/x", imu_sign_x);
@@ -209,6 +207,17 @@ void EkfConfiguration::DeserializeConfiguration() ATLAS_NOEXCEPT {
   FindParameter("/device_sign/mag/x", mag_sign_x);
   FindParameter("/device_sign/mag/y", mag_sign_y);
   FindParameter("/device_sign/mag/z", mag_sign_z);
+
+  // Getting the matrix for Eigen compatible types
+  std::vector<float> l_pd_tmp, l_pp_tmp;
+  FindParameter("/ekf/l_pd", l_pd_tmp);
+  FindParameter("/ekf/l_pp", l_pp_tmp);
+  if (l_pd_tmp.size() != 3 || l_pp_tmp.size() != 3) {
+    throw std::runtime_error(
+        "The parameter l_pd and l_pp must be 3 dim vectors");
+  }
+  l_pd = Eigen::Vector3d(l_pd_tmp[0], l_pd_tmp[1], l_pd_tmp[2]);
+  l_pp = Eigen::Vector3d(l_pp_tmp[0], l_pp_tmp[1], l_pp_tmp[2]);
 }
 
 //------------------------------------------------------------------------------

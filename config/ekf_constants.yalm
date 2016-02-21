@@ -47,11 +47,11 @@ ekf/sigma0_bias_gyr : 0.001
 ekf/sigma0_bias_baro : 0.001
 
 # Propagation uncertainty
-ekf/sigma_meas_acc : 10
+ekf/sigma__meas_acc : 10
 ekf/sigma_meas_gyr : 0.01
-ekf/sigma_bias_acc : 0.001
-ekf/sigma_bias_gyr : 0.001
-ekf/sigma_bias_baro : 0.001
+ekf/sigma_walk_bias_acc : 0.001
+ekf/sigma_walk_bias_gyr : 0.001
+ekf/sigma_walk_bias_baro : 0.001
 
 # ********* AUV Physics ***********
 

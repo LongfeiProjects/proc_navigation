@@ -29,6 +29,7 @@
 #include <memory>
 #include <vector>
 #include <ros/ros.h>
+#include <eigen3/Eigen/Eigen>
 #include <lib_atlas/macros.h>
 
 namespace proc_navigation {
@@ -86,11 +87,11 @@ class EkfConfiguration {
   float sigma0_bias_baro;
   float sigma_meas_acc;
   float sigma_meas_gyr;
-  float sigma_bias_acc;
-  float sigma_bias_gyr;
-  float sigma_bias_baro;
-  std::vector<float> l_pd;
-  std::vector<float> l_pp;
+  float sigma_walk_bias_acc;
+  float sigma_walk_bias_gyr;
+  float sigma_walk_bias_baro;
+  Eigen::Vector3d l_pd;
+  Eigen::Vector3d l_pp;
   float crit_station_acc;
   float crit_station_norm;
 

@@ -38,10 +38,23 @@ namespace proc_navigation {
 //------------------------------------------------------------------------------
 //
 ExtendedKalmanFilter::ExtendedKalmanFilter(const EkfConfiguration &conf)
-    ATLAS_NOEXCEPT : EkfConfiguration(conf),
+    ATLAS_NOEXCEPT : atlas::Observer<>(),
+                     atlas::Runnable(),
+                     EkfConfiguration(conf),
+                     processing_mutex_(),
                      new_data_ready_(false),
                      init_timer_(),
-                     processing_mutex_() {}
+                     x0_(),
+                     qc_(),
+                     p0_(),
+                     x_(),
+                     ge_() {
+  // Initialize the Kalman filter here
+  Initialize();
+
+  // The initialization is finished, start the Kalman filter here
+  Start();
+}
 
 //------------------------------------------------------------------------------
 //
@@ -54,18 +67,18 @@ ExtendedKalmanFilter::~ExtendedKalmanFilter() ATLAS_NOEXCEPT {}
 //
 void ExtendedKalmanFilter::OnSubjectNotify(atlas::Subject<> &subject)
     ATLAS_NOEXCEPT {
-  if (dynamic_cast<BaroController *>(&subject) != nullptr) {
+  if (dynamic_cast<BaroController *>(&subject) != nullptr && active_baro) {
     UpdateBaroData();
-  } else if (dynamic_cast<DvlController *>(&subject) != nullptr) {
+  } else if (dynamic_cast<DvlController *>(&subject) != nullptr && active_dvl) {
     UpdateDvlData();
-  } else if (dynamic_cast<ImuController *>(&subject) != nullptr) {
+  } else if (dynamic_cast<ImuController *>(&subject) != nullptr && active_mag) {
     UpdateImuData();
   }
 }
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::Initiate() {
+void ExtendedKalmanFilter::Initialize() {
   init_timer_.Start();
 
   // The vectors of interest for the initilization states.
@@ -76,79 +89,108 @@ void ExtendedKalmanFilter::Initiate() {
     // Check if there is new data here and add to the vectors
   }
 
-  CalculateImuMeans(g);
-  CalculateMagMeans(m);
+  x0_.pos = Eigen::Vector3d(0, 0, 0);
+  x0_.vel = Eigen::Vector3d(0, 0, 0);
+  x0_.b = CalculateInitialRotationMatrix(g, m);
+  x0_.acc_bias = Eigen::Vector3d(0, 0, 0);
+  x0_.gyro_bias = Eigen::Vector3d(0, 0, 0);
+  x0_.baro_bias = 0;
 
-  // The initialization is finished, start the Kalman filter here
-  Start();
+  qc_(0) = sigma_meas_acc;
+  qc_(1) = sigma_meas_acc;
+  qc_(2) = sigma_meas_acc;
+  qc_(3) = sigma_meas_gyr;
+  qc_(4) = sigma_meas_gyr;
+  qc_(5) = sigma_meas_gyr;
+  qc_(6) = sigma_walk_bias_acc;
+  qc_(7) = sigma_walk_bias_acc;
+  qc_(8) = sigma_walk_bias_acc;
+  qc_(9) = sigma_walk_bias_gyr;
+  qc_(10) = sigma_walk_bias_gyr;
+  qc_(11) = sigma_walk_bias_gyr;
+  qc_(12) = sigma_walk_bias_baro;
+
+  p0_(0) = sigma0_pos_x;
+  p0_(1) = sigma0_pos_y;
+  p0_(2) = sigma0_pos_z;
+  p0_(3) = sigma0_vel_x;
+  p0_(4) = sigma0_vel_y;
+  p0_(5) = sigma0_vel_z;
+  p0_(6) = sigma0_rho_x;
+  p0_(7) = sigma0_rho_y;
+  p0_(8) = sigma0_rho_z;
+  p0_(9) = sigma0_bias_acc;
+  p0_(10) = sigma0_bias_acc;
+  p0_(11) = sigma0_bias_acc;
+  p0_(12) = sigma0_bias_gyr;
+  p0_(12) = sigma0_bias_gyr;
+  p0_(12) = sigma0_bias_gyr;
+  p0_(12) = sigma0_bias_baro;
 }
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::CalculateImuMeans(
-    const std::array<std::vector<double>, 3> &g) ATLAS_NOEXCEPT {
+Eigen::Quaterniond ExtendedKalmanFilter::CalculateInitialRotationMatrix(
+    const std::array<std::vector<double>, 3> &g,
+    const std::array<std::vector<double>, 3> &m) ATLAS_NOEXCEPT {
   // WARN: Attention should be paid to the values of this vector.
   // If the IMU is inverted, there will be a -1 factor.
   Eigen::Vector3d g_mean;
   g_mean(0) = imu_sign_x * atlas::Mean(std::get<0>(g));
   g_mean(1) = imu_sign_y * atlas::Mean(std::get<1>(g));
   g_mean(2) = imu_sign_z * atlas::Mean(std::get<2>(g));
-  init_.ge = g_mean.norm();
+  double ge_ = g_mean.norm();
 
   // Calculate initial roll angle - Equation 10.14 - Farrell
-  init_.roll = std::atan2(g_mean(1), g_mean(2));
+  double roll = std::atan2(g_mean(1), g_mean(2));
 
   // Calculate initial roll angle - Equation 10.15 - Farrell
-  init_.pitch = std::atan2(
+  double pitch = std::atan2(
       -g_mean(0), std::sqrt(g_mean(1) * g_mean(1) + g_mean(2) * g_mean(2)));
 
   // Calculate rotation matrix - Equation 10.16 - Farrell
+  Eigen::Matrix3d r_b2w;
   // The row index is passed first on a Eigen::Matrix, for more info, see:
   // http://eigen.tuxfamily.org/dox-devel/group__TutorialMatrixClass.html#title4
-  init_.r_b2w(0, 0) = std::cos(init_.pitch);
-  init_.r_b2w(0, 1) = std::sin(init_.pitch) * std::sin(init_.roll);
-  init_.r_b2w(0, 2) = std::sin(init_.pitch) * std::cos(init_.roll);
-  init_.r_b2w(1, 0) = 0;
-  init_.r_b2w(1, 1) = std::cos(init_.roll);
-  init_.r_b2w(1, 2) = -std::sin(init_.roll);
-  init_.r_b2w(2, 0) = -std::sin(init_.pitch);
-  init_.r_b2w(2, 1) = std::cos(init_.pitch) * std::sin(init_.roll);
-  init_.r_b2w(2, 2) = std::cos(init_.pitch) * std::cos(init_.roll);
-}
+  r_b2w(0, 0) = std::cos(pitch);
+  r_b2w(0, 1) = std::sin(pitch) * std::sin(roll);
+  r_b2w(0, 2) = std::sin(pitch) * std::cos(roll);
+  r_b2w(1, 0) = 0;
+  r_b2w(1, 1) = std::cos(roll);
+  r_b2w(1, 2) = -std::sin(roll);
+  r_b2w(2, 0) = -std::sin(pitch);
+  r_b2w(2, 1) = std::cos(pitch) * std::sin(roll);
+  r_b2w(2, 2) = std::cos(pitch) * std::cos(roll);
 
-//------------------------------------------------------------------------------
-//
-void ExtendedKalmanFilter::CalculateMagMeans(
-    const std::array<std::vector<double>, 3> &m) ATLAS_NOEXCEPT {
   Eigen::Vector3d m_b;
   m_b(0) = mag_sign_x * atlas::Mean(std::get<0>(m));
   m_b(1) = mag_sign_x * atlas::Mean(std::get<1>(m));
   m_b(2) = mag_sign_x * atlas::Mean(std::get<2>(m));
 
-  Eigen::Vector3d m_w = init_.r_b2w * m_b;
+  Eigen::Vector3d m_w = r_b2w * m_b;
 
-  init_.yaw = std::atan2(-m_w(1), m_w(0));
+  double yaw = std::atan2(-m_w(1), m_w(0));
 
-  init_.r0_bn(0, 0) = std::cos(init_.pitch) * std::cos(init_.yaw);
-  init_.r0_bn(0, 1) =
-      std::sin(init_.roll) * std::sin(init_.pitch) * std::cos(init_.yaw) -
-      std::cos(init_.roll) * std::sin(init_.yaw);
-  init_.r0_bn(0, 2) =
-      std::cos(init_.roll) * std::sin(init_.pitch) * std::cos(init_.yaw) +
-      std::sin(init_.roll) * std::sin(init_.yaw);
-  init_.r0_bn(1, 0) = std::cos(init_.pitch) * std::sin(init_.yaw);
-  init_.r0_bn(1, 1) =
-      std::sin(init_.roll) * std::sin(init_.pitch) * std::sin(init_.yaw) +
-      std::cos(init_.roll) * std::cos(init_.yaw);
-  init_.r0_bn(1, 2) =
-      std::cos(init_.roll) * std::sin(init_.pitch) * std::sin(init_.yaw) -
-      std::sin(init_.roll) * std::cos(init_.yaw);
-  init_.r0_bn(2, 0) = -std::sin(init_.pitch);
-  init_.r0_bn(2, 1) = std::sin(init_.roll) * std::cos(init_.pitch);
-  init_.r0_bn(2, 2) = std::cos(init_.roll) * std::cos(init_.pitch);
+  Eigen::Matrix3d r0_bn;
+  r0_bn(0, 0) = std::cos(pitch) * std::cos(yaw);
+  r0_bn(0, 1) = std::sin(roll) * std::sin(pitch) * std::cos(yaw) -
+                std::cos(roll) * std::sin(yaw);
+  r0_bn(0, 2) = std::cos(roll) * std::sin(pitch) * std::cos(yaw) +
+                std::sin(roll) * std::sin(yaw);
+  r0_bn(1, 0) = std::cos(pitch) * std::sin(yaw);
+  r0_bn(1, 1) = std::sin(roll) * std::sin(pitch) * std::sin(yaw) +
+                std::cos(roll) * std::cos(yaw);
+  r0_bn(1, 2) = std::cos(roll) * std::sin(pitch) * std::sin(yaw) -
+                std::sin(roll) * std::cos(yaw);
+  r0_bn(2, 0) = -std::sin(pitch);
+  r0_bn(2, 1) = std::sin(roll) * std::cos(pitch);
+  r0_bn(2, 2) = std::cos(roll) * std::cos(pitch);
 
-  init_.r0_nb = init_.r0_bn.transpose();
-  init_.b0 = atlas::RotToQuat(init_.r0_nb);
+  Eigen::Matrix3d r0_nb = r0_bn.transpose();
+
+  // The eigen quaternion is taking a rotation matrix as constructor parameter
+  // for its initilization.
+  return Eigen::Quaterniond(r0_nb);
 }
 
 //------------------------------------------------------------------------------
