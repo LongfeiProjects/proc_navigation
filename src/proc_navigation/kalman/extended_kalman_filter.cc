@@ -39,8 +39,7 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(
     const StateController<ImuMessage>::Ptr &imu,
     const StateController<MagMessage>::Ptr &mag,
     const StateController<DvlMessage>::Ptr &dvl,
-    const EkfConfiguration &conf) ATLAS_NOEXCEPT : atlas::Observer<>(),
-                                                   atlas::Runnable(),
+    const EkfConfiguration &conf) ATLAS_NOEXCEPT : atlas::Runnable(),
                                                    EkfConfiguration(conf),
                                                    baro_(baro),
                                                    imu_(imu),
@@ -62,19 +61,10 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(
 
 //------------------------------------------------------------------------------
 //
-ExtendedKalmanFilter::~ExtendedKalmanFilter() ATLAS_NOEXCEPT { }
+ExtendedKalmanFilter::~ExtendedKalmanFilter() ATLAS_NOEXCEPT {}
 
 //==============================================================================
 // M E T H O D   S E C T I O N
-
-//------------------------------------------------------------------------------
-//
-void ExtendedKalmanFilter::OnSubjectNotify(atlas::Subject<> &subject)
-ATLAS_NOEXCEPT {
-  if (dynamic_cast<StateController<ImuMessage> *>(&subject) != nullptr) {
-    UpdateImuData();
-  }
-}
 
 //------------------------------------------------------------------------------
 //
@@ -174,14 +164,14 @@ Eigen::Quaterniond ExtendedKalmanFilter::CalculateInitialRotationMatrix(
   Eigen::Matrix3d r0_bn;
   r0_bn(0, 0) = std::cos(pitch) * std::cos(yaw);
   r0_bn(0, 1) = std::sin(roll) * std::sin(pitch) * std::cos(yaw) -
-      std::cos(roll) * std::sin(yaw);
+                std::cos(roll) * std::sin(yaw);
   r0_bn(0, 2) = std::cos(roll) * std::sin(pitch) * std::cos(yaw) +
-      std::sin(roll) * std::sin(yaw);
+                std::sin(roll) * std::sin(yaw);
   r0_bn(1, 0) = std::cos(pitch) * std::sin(yaw);
   r0_bn(1, 1) = std::sin(roll) * std::sin(pitch) * std::sin(yaw) +
-      std::cos(roll) * std::cos(yaw);
+                std::cos(roll) * std::cos(yaw);
   r0_bn(1, 2) = std::cos(roll) * std::sin(pitch) * std::sin(yaw) -
-      std::sin(roll) * std::cos(yaw);
+                std::sin(roll) * std::cos(yaw);
   r0_bn(2, 0) = -std::sin(pitch);
   r0_bn(2, 1) = std::sin(roll) * std::cos(pitch);
   r0_bn(2, 2) = std::cos(roll) * std::cos(pitch);
@@ -197,7 +187,7 @@ Eigen::Quaterniond ExtendedKalmanFilter::CalculateInitialRotationMatrix(
 //
 void ExtendedKalmanFilter::Run() {
   while (IsRunning()) {
-    if (IsNewDataReady()) {
+    if (imu_->IsNewDataReady()) {
       std::lock_guard<std::mutex> guard(processing_mutex_);
       double dt = timer_.Time();
       timer_.Reset();
@@ -233,7 +223,7 @@ void ExtendedKalmanFilter::UpdateMagData() ATLAS_NOEXCEPT {
 //
 bool ExtendedKalmanFilter::IsNewDataReady() const ATLAS_NOEXCEPT {
   return baro_->IsNewDataReady() || imu_->IsNewDataReady() ||
-      dvl_->IsNewDataReady() || mag_->IsNewDataReady();
+         dvl_->IsNewDataReady() || mag_->IsNewDataReady();
 }
 
 }  // namespace proc_navigation

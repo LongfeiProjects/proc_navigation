@@ -42,9 +42,7 @@
 
 namespace proc_navigation {
 
-class ExtendedKalmanFilter : public atlas::Observer<>,
-                             public atlas::Runnable,
-                             private EkfConfiguration {
+class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration {
  public:
   //==========================================================================
   // T Y P E D E F   A N D   E N U M
@@ -107,8 +105,6 @@ class ExtendedKalmanFilter : public atlas::Observer<>,
    * odometry data.
    */
   void Run() override;
-
-  void OnSubjectNotify(atlas::Subject<> &subject) ATLAS_NOEXCEPT override;
 
   Eigen::Quaterniond CalculateInitialRotationMatrix(
       const std::array<std::vector<double>, 3> &g,
