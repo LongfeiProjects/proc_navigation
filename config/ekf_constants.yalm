@@ -66,9 +66,9 @@
 
 # ********* Signs of devices measures ***********
 # According to the device orientation, the sign can change, set the values here
-/proc_navigation/device_sign/imu/x: -1
-/proc_navigation/device_sign/imu/y: 1
-/proc_navigation/device_sign/imu/z: 1
+/proc_navigation/device_sign/imu/x: 1
+/proc_navigation/device_sign/imu/y: -1
+/proc_navigation/device_sign/imu/z: -1
 /proc_navigation/device_sign/mag/x: 1
 /proc_navigation/device_sign/mag/y: -1
 /proc_navigation/device_sign/mag/z: -1

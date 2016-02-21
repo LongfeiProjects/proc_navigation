@@ -136,9 +136,9 @@ Eigen::Quaterniond ExtendedKalmanFilter::CalculateInitialRotationMatrix(
   // WARN: Attention should be paid to the values of this vector.
   // If the IMU is inverted, there will be a -1 factor.
   Eigen::Vector3d g_mean;
-  g_mean(0) = imu_sign_x * atlas::Mean(std::get<0>(g));
-  g_mean(1) = imu_sign_y * atlas::Mean(std::get<1>(g));
-  g_mean(2) = imu_sign_z * atlas::Mean(std::get<2>(g));
+  g_mean(0) = -imu_sign_x * atlas::Mean(std::get<0>(g));
+  g_mean(1) = -imu_sign_y * atlas::Mean(std::get<1>(g));
+  g_mean(2) = -imu_sign_z * atlas::Mean(std::get<2>(g));
   ge_ = g_mean.norm();
 
   // Calculate initial roll angle - Equation 10.14 - Farrell
@@ -198,6 +198,8 @@ Eigen::Quaterniond ExtendedKalmanFilter::CalculateInitialRotationMatrix(
 void ExtendedKalmanFilter::Run() {
   while (IsRunning()) {
     if (IsNewDataReady()) {
+      // Propagation
+      // if IsNewdatardy -> update
       std::lock_guard<std::mutex> guard(processing_mutex_);
     }
   }
