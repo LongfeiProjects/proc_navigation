@@ -50,7 +50,7 @@ namespace proc_navigation {
  * will have to dynamic cast the message anyway...
  */
 template <class Tp_>
-class StateController : public atlas::Subject<> {
+class StateController {
  public:
   //============================================================================
   // T Y P E D E F   A N D   E N U M
@@ -59,11 +59,6 @@ class StateController : public atlas::Subject<> {
   using ConstPtr = std::shared_ptr<const StateController<Tp_>>;
   using PtrList = std::vector<StateController::Ptr>;
   using ConstPtrList = std::vector<StateController::ConstPtr>;
-
-  struct StampedData {
-    Tp_ msg;
-    double dt;
-  };
 
   //============================================================================
   // P U B L I C   C / D T O R S
@@ -82,7 +77,7 @@ class StateController : public atlas::Subject<> {
 
   bool IsNewDataReady() const ATLAS_NOEXCEPT;
 
-  const StampedData &GetLastData() const ATLAS_NOEXCEPT;
+  const Tp_ &GetLastData() const ATLAS_NOEXCEPT;
 
   void Callback(const Tp_ &msg) ATLAS_NOEXCEPT;
 
@@ -90,13 +85,13 @@ class StateController : public atlas::Subject<> {
   //============================================================================
   // P R I V A T E   M E M B E R S
 
-  std::mutex time_mutex_;
-  atlas::MicroTimer timer_;
-  StampedData last_data_;
+  ros::NodeHandlePtr nh_;
+
+  std::mutex data_mutex_;
+  Tp_ last_data_;
 
   std::atomic<bool> new_data_ready_;
 
-  ros::NodeHandlePtr nh_;
   ros::Subscriber subscriber_;
 };
 

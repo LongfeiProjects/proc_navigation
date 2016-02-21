@@ -57,18 +57,14 @@ template <class Tp_>
 ATLAS_ALWAYS_INLINE void StateController<Tp_>::Callback(const Tp_ &msg)
     ATLAS_NOEXCEPT {
   new_data_ready_ = true;
-  std::lock_guard<std::mutex> guard(time_mutex_);
-  last_data_.dt = timer_.Time();
-  last_data_.msg = msg;
-  timer_.Reset();
-  Notify();
+  std::lock_guard<std::mutex> guard(data_mutex_);
+  last_data_ = msg;
 }
 
 //------------------------------------------------------------------------------
 //
 template <class Tp_>
-ATLAS_ALWAYS_INLINE const typename StateController<Tp_>::StampedData &
-StateController<Tp_>::GetLastData() const ATLAS_NOEXCEPT {
+ATLAS_ALWAYS_INLINE const Tp_ &StateController<Tp_>::GetLastData() const ATLAS_NOEXCEPT {
   new_data_ready_ = false;
   return last_data_;
 }

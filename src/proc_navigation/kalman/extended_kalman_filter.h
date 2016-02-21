@@ -143,6 +143,11 @@ class ExtendedKalmanFilter : public atlas::Observer<>,
   atlas::MicroTimer init_timer_;
 
   /**
+   * The timer that will be used to get the delta time between two IMU measures
+   */
+  atlas::MicroTimer timer_;
+
+  /**
    * The initial state of the kalman filter.
    * The values of the states are set after the initialization step.
    */

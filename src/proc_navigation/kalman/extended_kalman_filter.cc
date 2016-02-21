@@ -198,9 +198,9 @@ Eigen::Quaterniond ExtendedKalmanFilter::CalculateInitialRotationMatrix(
 void ExtendedKalmanFilter::Run() {
   while (IsRunning()) {
     if (IsNewDataReady()) {
-      // Propagation
-      // if IsNewdatardy -> update
       std::lock_guard<std::mutex> guard(processing_mutex_);
+      double dt = timer_.Time();
+      timer_.Reset();
     }
   }
 }
