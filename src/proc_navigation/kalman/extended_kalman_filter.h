@@ -58,13 +58,16 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration {
   using MagMessage = sensor_msgs::MagneticField::Ptr;
 
   struct State {
-    Eigen::Vector3d pos;
-    Eigen::Vector3d vel;
+    Eigen::Vector3d pos_n;
+    Eigen::Vector3d vel_n;
     Eigen::Quaterniond b;
     Eigen::Vector3d acc_bias;
     Eigen::Vector3d gyro_bias;
     double baro_bias;
   };
+
+  Eigen::Vector3d w_ib_b;
+  Eigen::Vector3d vel_b;
 
   //==========================================================================
   // P U B L I C   C / D T O R S

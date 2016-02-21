@@ -80,8 +80,8 @@ void ExtendedKalmanFilter::Initialize() {
     // Check if there is new data here and add to the vectors
   }
 
-  x0_.pos = Eigen::Vector3d(0, 0, 0);
-  x0_.vel = Eigen::Vector3d(0, 0, 0);
+  x0_.pos_n = Eigen::Vector3d(0, 0, 0);
+  x0_.vel_n = Eigen::Vector3d(0, 0, 0);
   x0_.b = CalculateInitialRotationMatrix(g, m);
   x0_.acc_bias = Eigen::Vector3d(0, 0, 0);
   x0_.gyro_bias = Eigen::Vector3d(0, 0, 0);
