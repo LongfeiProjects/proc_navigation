@@ -71,16 +71,7 @@ ExtendedKalmanFilter::~ExtendedKalmanFilter() ATLAS_NOEXCEPT { }
 //
 void ExtendedKalmanFilter::OnSubjectNotify(atlas::Subject<> &subject)
 ATLAS_NOEXCEPT {
-  if (dynamic_cast<StateController<BaroMessage> *>(&subject) != nullptr &&
-      active_baro) {
-    UpdateBaroData();
-  } else if (dynamic_cast<StateController<DvlMessage> *>(&subject) != nullptr &&
-      active_dvl) {
-    UpdateDvlData();
-  } else if (dynamic_cast<StateController<MagMessage> *>(&subject) != nullptr &&
-      active_mag) {
-    UpdateMagData();
-  } else if (dynamic_cast<StateController<ImuMessage> *>(&subject) != nullptr) {
+  if (dynamic_cast<StateController<ImuMessage> *>(&subject) != nullptr) {
     UpdateImuData();
   }
 }
@@ -148,7 +139,7 @@ Eigen::Quaterniond ExtendedKalmanFilter::CalculateInitialRotationMatrix(
   g_mean(0) = imu_sign_x * atlas::Mean(std::get<0>(g));
   g_mean(1) = imu_sign_y * atlas::Mean(std::get<1>(g));
   g_mean(2) = imu_sign_z * atlas::Mean(std::get<2>(g));
-  double ge_ = g_mean.norm();
+  ge_ = g_mean.norm();
 
   // Calculate initial roll angle - Equation 10.14 - Farrell
   double roll = std::atan2(g_mean(1), g_mean(2));
