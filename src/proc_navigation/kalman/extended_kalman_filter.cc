@@ -24,7 +24,7 @@
  */
 
 #include <eigen3/Eigen/Eigen>
-#include <lib_atlas/maths/stats.h>
+#include <lib_atlas/maths.h>
 #include "proc_navigation/controllers/baro_controller.h"
 #include "proc_navigation/controllers/dvl_controller.h"
 #include "proc_navigation/controllers/imu_controller.h"
@@ -72,8 +72,8 @@ void ExtendedKalmanFilter::Initiate() {
   std::array<std::vector<double>, 3> g;
   std::array<std::vector<double>, 3> m;
 
-  while(init_timer_.MicroSeconds() < t_init) {
-    if()
+  while (init_timer_.MicroSeconds() < t_init) {
+    // Check if there is new data here and add to the vectors
   }
 
   CalculateImuMeans(g);
@@ -85,44 +85,70 @@ void ExtendedKalmanFilter::Initiate() {
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::CalculateImuMeans(const std::array<std::vector<double>,
-                                                              3> &g) ATLAS_NOEXCEPT {
+void ExtendedKalmanFilter::CalculateImuMeans(
+    const std::array<std::vector<double>, 3> &g) ATLAS_NOEXCEPT {
   // WARN: Attention should be paid to the values of this vector.
   // If the IMU is inverted, there will be a -1 factor.
   Eigen::Vector3d g_mean;
   g_mean(0) = imu_sign_x * atlas::Mean(std::get<0>(g));
   g_mean(1) = imu_sign_y * atlas::Mean(std::get<1>(g));
   g_mean(2) = imu_sign_z * atlas::Mean(std::get<2>(g));
-  init_state_.ge = g_mean.norm();
+  init_.ge = g_mean.norm();
 
   // Calculate initial roll angle - Equation 10.14 - Farrell
-  init_state_.roll = std::atan2(g_mean(1), g_mean(2));
+  init_.roll = std::atan2(g_mean(1), g_mean(2));
 
   // Calculate initial roll angle - Equation 10.15 - Farrell
-  init_state_.pitch = std::atan2(-g_mean(0), std::sqrt(g_mean(1)*g_mean(1) + g_mean(2)*g_mean(2)));
+  init_.pitch = std::atan2(
+      -g_mean(0), std::sqrt(g_mean(1) * g_mean(1) + g_mean(2) * g_mean(2)));
 
   // Calculate rotation matrix - Equation 10.16 - Farrell
   // The row index is passed first on a Eigen::Matrix, for more info, see:
   // http://eigen.tuxfamily.org/dox-devel/group__TutorialMatrixClass.html#title4
-  init_state_.r_b2w(0, 0) = std::cos(init_state_.pitch);
-  init_state_.r_b2w(0, 1) = std::sin(init_state_.pitch)*std::sin(init_state_.roll);
-  init_state_.r_b2w(0, 2) = std::sin(init_state_.pitch)*std::cos(init_state_.roll);
-  init_state_.r_b2w(1, 0) = 0;
-  init_state_.r_b2w(1, 1) = std::cos(init_state_.roll);
-  init_state_.r_b2w(1, 2) = -std::sin(init_state_.roll);
-  init_state_.r_b2w(2, 0) = -std::sin(init_state_.pitch);
-  init_state_.r_b2w(2, 1) = std::cos(init_state_.pitch)*std::sin(init_state_.roll);
-  init_state_.r_b2w(2, 2) = std::cos(init_state_.pitch)*std::cos(init_state_.roll);
+  init_.r_b2w(0, 0) = std::cos(init_.pitch);
+  init_.r_b2w(0, 1) = std::sin(init_.pitch) * std::sin(init_.roll);
+  init_.r_b2w(0, 2) = std::sin(init_.pitch) * std::cos(init_.roll);
+  init_.r_b2w(1, 0) = 0;
+  init_.r_b2w(1, 1) = std::cos(init_.roll);
+  init_.r_b2w(1, 2) = -std::sin(init_.roll);
+  init_.r_b2w(2, 0) = -std::sin(init_.pitch);
+  init_.r_b2w(2, 1) = std::cos(init_.pitch) * std::sin(init_.roll);
+  init_.r_b2w(2, 2) = std::cos(init_.pitch) * std::cos(init_.roll);
 }
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::CalculateMagMeans(const std::array<std::vector<double>,
-                                                              3> &m) ATLAS_NOEXCEPT {
-  Eigen::Vector3d m_mean;
-  m_mean(0) = atlas::Mean(std::get<0>(m));
-  m_mean(1) = atlas::Mean(std::get<1>(m));
-  m_mean(2) = atlas::Mean(std::get<2>(m));
+void ExtendedKalmanFilter::CalculateMagMeans(
+    const std::array<std::vector<double>, 3> &m) ATLAS_NOEXCEPT {
+  Eigen::Vector3d m_b;
+  m_b(0) = mag_sign_x * atlas::Mean(std::get<0>(m));
+  m_b(1) = mag_sign_x * atlas::Mean(std::get<1>(m));
+  m_b(2) = mag_sign_x * atlas::Mean(std::get<2>(m));
+
+  Eigen::Vector3d m_w = init_.r_b2w * m_b;
+
+  init_.yaw = std::atan2(-m_w(1), m_w(0));
+
+  init_.r0_bn(0, 0) = std::cos(init_.pitch) * std::cos(init_.yaw);
+  init_.r0_bn(0, 1) =
+      std::sin(init_.roll) * std::sin(init_.pitch) * std::cos(init_.yaw) -
+      std::cos(init_.roll) * std::sin(init_.yaw);
+  init_.r0_bn(0, 2) =
+      std::cos(init_.roll) * std::sin(init_.pitch) * std::cos(init_.yaw) +
+      std::sin(init_.roll) * std::sin(init_.yaw);
+  init_.r0_bn(1, 0) = std::cos(init_.pitch) * std::sin(init_.yaw);
+  init_.r0_bn(1, 1) =
+      std::sin(init_.roll) * std::sin(init_.pitch) * std::sin(init_.yaw) +
+      std::cos(init_.roll) * std::cos(init_.yaw);
+  init_.r0_bn(1, 2) =
+      std::cos(init_.roll) * std::sin(init_.pitch) * std::sin(init_.yaw) -
+      std::sin(init_.roll) * std::cos(init_.yaw);
+  init_.r0_bn(2, 0) = -std::sin(init_.pitch);
+  init_.r0_bn(2, 1) = std::sin(init_.roll) * std::cos(init_.pitch);
+  init_.r0_bn(2, 2) = std::cos(init_.roll) * std::cos(init_.pitch);
+
+  init_.r0_nb = init_.r0_bn.transpose();
+  init_.b0 = atlas::RotToQuat(init_.r0_nb);
 }
 
 //------------------------------------------------------------------------------

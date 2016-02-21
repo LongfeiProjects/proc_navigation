@@ -28,9 +28,11 @@
 
 #include <memory>
 #include <vector>
+#include <eigen3/Eigen/Eigen>
 #include <lib_atlas/macros.h>
 #include <lib_atlas/pattern/subject.h>
 #include <lib_atlas/pattern/runnable.h>
+#include <lib_atlas/sys/timer.h>
 #include "proc_navigation/kalman/ekf_configuration.h"
 
 namespace proc_navigation {
@@ -53,6 +55,9 @@ class ExtendedKalmanFilter : public atlas::Observer<>,
     double pitch;
     double yaw;
     Eigen::Matrix3d r_b2w;
+    Eigen::Matrix3d r0_bn;
+    Eigen::Matrix3d r0_nb;
+    Eigen::Quaterniond b0;
   };
 
   //==========================================================================
@@ -92,9 +97,11 @@ class ExtendedKalmanFilter : public atlas::Observer<>,
 
   void OnSubjectNotify(atlas::Subject<> &subject) ATLAS_NOEXCEPT override;
 
-  void CalculateImuMeans(const std::array<std::vector<double>, 3> &g) ATLAS_NOEXCEPT;
+  void CalculateImuMeans(const std::array<std::vector<double>, 3> &g)
+      ATLAS_NOEXCEPT;
 
-  void CalculateMagMeans(const std::array<std::vector<double>, 3> &m) ATLAS_NOEXCEPT;
+  void CalculateMagMeans(const std::array<std::vector<double>, 3> &m)
+      ATLAS_NOEXCEPT;
 
   //==========================================================================
   // P R I V A T E   M E M B E R S
@@ -114,7 +121,7 @@ class ExtendedKalmanFilter : public atlas::Observer<>,
    */
   atlas::MicroTimer init_timer_;
 
-  InitialState init_state_;
+  InitialState init_;
 
   /**
    * As we don't want to access the data if a proccessing loop instance is
