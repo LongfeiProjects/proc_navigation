@@ -50,7 +50,7 @@ class ImuController : public StateController {
   //============================================================================
   // P U B L I C   C / D T O R S
 
-  ImuController() ATLAS_NOEXCEPT;
+  explicit ImuController(const ros::NodeHandlePtr &) ATLAS_NOEXCEPT;
 
   virtual ~ImuController() ATLAS_NOEXCEPT;
 

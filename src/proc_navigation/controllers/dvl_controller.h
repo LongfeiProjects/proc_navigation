@@ -50,7 +50,7 @@ class DvlController : public StateController {
   //============================================================================
   // P U B L I C   C / D T O R S
 
-  DvlController() ATLAS_NOEXCEPT;
+  explicit DvlController(const ros::NodeHandlePtr &) ATLAS_NOEXCEPT;
 
   virtual ~DvlController() ATLAS_NOEXCEPT;
 

@@ -32,7 +32,8 @@ namespace proc_navigation {
 
 //------------------------------------------------------------------------------
 //
-BaroController::BaroController() ATLAS_NOEXCEPT {}
+BaroController::BaroController(const ros::NodeHandlePtr &nh) ATLAS_NOEXCEPT
+    : StateController(nh) {}
 
 //------------------------------------------------------------------------------
 //

@@ -32,7 +32,8 @@ namespace proc_navigation {
 
 //------------------------------------------------------------------------------
 //
-DvlController::DvlController() ATLAS_NOEXCEPT {}
+DvlController::DvlController(const ros::NodeHandlePtr &nh) ATLAS_NOEXCEPT
+    : StateController(nh) {}
 
 //------------------------------------------------------------------------------
 //

@@ -32,7 +32,8 @@ namespace proc_navigation {
 
 //------------------------------------------------------------------------------
 //
-ImuController::ImuController() ATLAS_NOEXCEPT {}
+ImuController::ImuController(const ros::NodeHandlePtr &nh) ATLAS_NOEXCEPT
+    : StateController(nh) {}
 
 //------------------------------------------------------------------------------
 //

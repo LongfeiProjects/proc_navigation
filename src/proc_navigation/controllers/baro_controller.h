@@ -50,7 +50,7 @@ class BaroController : public StateController {
   //============================================================================
   // P U B L I C   C / D T O R S
 
-  BaroController() ATLAS_NOEXCEPT;
+  explicit BaroController(const ros::NodeHandlePtr &) ATLAS_NOEXCEPT;
 
   virtual ~BaroController() ATLAS_NOEXCEPT;
 

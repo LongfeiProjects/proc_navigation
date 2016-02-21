@@ -49,21 +49,20 @@ namespace proc_navigation {
  * depend on the child. No template usage is requiered here as the observer
  * will have to dynamic cast the message anyway...
  */
-template <class Tp_>
 class StateController : public atlas::Subject<> {
  public:
   //============================================================================
   // T Y P E D E F   A N D   E N U M
 
-  using Ptr = std::shared_ptr<StateController<Tp_>>;
-  using ConstPtr = std::shared_ptr<const StateController<Tp_>>;
+  using Ptr = std::shared_ptr<StateController>;
+  using ConstPtr = std::shared_ptr<const StateController>;
   using PtrList = std::vector<StateController::Ptr>;
   using ConstPtrList = std::vector<StateController::ConstPtr>;
 
   //============================================================================
   // P U B L I C   C / D T O R S
 
-  StateController(const ros::NodeHandlePtr &) ATLAS_NOEXCEPT;
+  explicit StateController(const ros::NodeHandlePtr &) ATLAS_NOEXCEPT;
 
   virtual ~StateController() ATLAS_NOEXCEPT;
 
@@ -84,7 +83,7 @@ class StateController : public atlas::Subject<> {
    * of the information you want the user to have and send it when you have a
    * new information available.
    */
-  double GetTimeDelta() const ATLAS_NOEXCEPT;
+  double GetTimeDelta() ATLAS_NOEXCEPT;
 
   /**
    * This method will handle the behavior of a StateController when a new data

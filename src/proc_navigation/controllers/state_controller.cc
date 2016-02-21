@@ -43,7 +43,7 @@ StateController::~StateController() ATLAS_NOEXCEPT {}
 
 //------------------------------------------------------------------------------
 //
-double StateController::GetTimeDelta() const ATLAS_NOEXCEPT {
+double StateController::GetTimeDelta() ATLAS_NOEXCEPT {
   std::lock_guard<std::mutex> guard(time_mutex_);
   return delta_t_;
 }

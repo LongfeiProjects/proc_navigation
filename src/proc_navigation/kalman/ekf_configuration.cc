@@ -65,12 +65,12 @@ EkfConfiguration::EkfConfiguration(const ros::NodeHandlePtr &nh) ATLAS_NOEXCEPT
       l_pp({0.0, -0.10f, -0.5f}),
       crit_station_acc(1.0f),
       crit_station_norm(1.0f),
-     imu_sign_x(-1),
-     imu_sign_y(1),
-     imu_sign_z(1),
-     mag_sign_x(1),
-     mag_sign_y(-1),
-     mag_sign_z(-1),
+      imu_sign_x(-1),
+      imu_sign_y(1),
+      imu_sign_z(1),
+      mag_sign_x(1),
+      mag_sign_y(-1),
+      mag_sign_z(-1),
       nh_(nh) {}
 
 //------------------------------------------------------------------------------
@@ -109,11 +109,11 @@ EkfConfiguration::EkfConfiguration(const EkfConfiguration &rhs) ATLAS_NOEXCEPT {
   crit_station_acc = rhs.crit_station_acc;
   crit_station_norm = rhs.crit_station_norm;
   imu_sign_x = rhs.imu_sign_x;
-      imu_sign_y = rhs.imu_sign_y;
-      imu_sign_z = rhs.imu_sign_z;
-      mag_sign_x = rhs.mag_sign_x;
-      mag_sign_y = rhs.mag_sign_y;
-      mag_sign_z = rhs.mag_sign_z;
+  imu_sign_y = rhs.imu_sign_y;
+  imu_sign_z = rhs.imu_sign_z;
+  mag_sign_x = rhs.mag_sign_x;
+  mag_sign_y = rhs.mag_sign_y;
+  mag_sign_z = rhs.mag_sign_z;
   nh_ = rhs.nh_;
 }
 
@@ -219,8 +219,7 @@ void EkfConfiguration::FindParameter(const std::string &str,
   if (nh_->hasParam(str)) {
     nh_->getParam(str, p);
   } else {
-    ROS_WARN_STREAM("Did not find " << str
-                                         << ". Using default value instead.");
+    ROS_WARN_STREAM("Did not find " << str << ". Using default value instead.");
   }
 }
 
