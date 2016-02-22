@@ -218,7 +218,7 @@ void ExtendedKalmanFilter::Run() {
       extra_states_.w_ib_b = gyr_raw_data - states_.gyro_bias;
       criterions_.ufw = extra_states_.w_ib_b.squaredNorm();
 
-      // states_.b = exact_quat(states_.w_ib_b,dt,states_.b);
+      states_.b = atlas::ExactQuat(extra_states_.w_ib_b,dt,states_.b);
       extra_states_.r_n_b = Eigen::Matrix3d(states_.b);
       extra_states_.r_b_n = extra_states_.r_n_b.transpose();
       extra_states_.euler = atlas::QuatToEuler(states_.b);
@@ -248,25 +248,27 @@ void ExtendedKalmanFilter::Run() {
        * UPDATE
        */
 
-      if( is_stationnary_ && active_gravity )
-      {
-        UpdateGravity( f_b );
+      if (is_stationnary_ && active_gravity) {
+        UpdateGravity(f_b);
       }
 
-      if( mag_->IsNewDataReady() )
-      {
+      if (mag_->IsNewDataReady() && active_mag) {
         UpdateMag();
       }
 
-      if( dvl_->IsNewDataReady() )
-      {
+      if (dvl_->IsNewDataReady() && active_dvl) {
         UpdateDvl();
       }
 
-      if( baro_->IsNewDataReady() )
-      {
+      if (baro_->IsNewDataReady() && active_baro) {
         UpdateBaro();
       }
+
+     /*
+     * COVARIANCE MATRIX SYMMETRIZATION
+     */
+      kalman_matrix_.p_ = (kalman_matrix_.p_ + kalman_matrix_.p_.transpose()) / 2;
+
     }
   }
 }
@@ -282,6 +284,7 @@ void ExtendedKalmanFilter::Mechanization(Eigen::Vector3d f_b, double dt) ATLAS_N
 
   states_.pos_n = states_.pos_n + p_dot_n*dt;
   states_.vel_n = states_.vel_n + v_dot_n*dt;
+  extra_states_.vel_b = extra_states_.r_n_b*states_.vel_n;
 }
 
 //------------------------------------------------------------------------------
@@ -411,6 +414,33 @@ void ExtendedKalmanFilter::KalmanStatesCovariancePropagation(double dt) ATLAS_NO
 //
 void ExtendedKalmanFilter::UpdateGravity( Eigen::Vector3d f_b ) ATLAS_NOEXCEPT {
   std::lock_guard<std::mutex> guard(processing_mutex_);
+
+  Eigen::Matrix3d skew_g_n = atlas::SkewMatrix(g_n_);
+
+  Eigen::Matrix<double, 3, 16> h_gravity = Eigen::Matrix<double, 3, 16>::Zero(1,16);
+  h_gravity(0,6) = -skew_g_n(0,0);
+  h_gravity(0,7) = -skew_g_n(0,1);
+  h_gravity(0,8) = -skew_g_n(0,2);
+  h_gravity(1,6) = -skew_g_n(1,0);
+  h_gravity(1,7) = -skew_g_n(1,1);
+  h_gravity(1,8) = -skew_g_n(1,2);
+  h_gravity(2,6) = -skew_g_n(2,0);
+  h_gravity(2,7) = -skew_g_n(2,1);
+  h_gravity(2,8) = -skew_g_n(2,2);
+
+  Eigen::Matrix<double, 3, 3> r_gravity = sigma_meas_gravity*sigma_meas_gravity*(criterions_.ufab + criterions_.ufan + criterions_.ufw)*Eigen::Matrix3d::Identity(3,3);
+
+  Eigen::Matrix<double, 3, 3> s_gravity = h_gravity * kalman_matrix_.p_ * h_gravity.transpose() + r_gravity;
+  Eigen::Matrix<double, 16, 3> k_gravity = kalman_matrix_.p_*h_gravity.transpose() * s_gravity.inverse();
+  kalman_matrix_.p_ = (Eigen::Matrix<double, 16, 16>::Identity(16,16) - k_gravity*h_gravity)*kalman_matrix_.p_;
+
+  Eigen::Matrix<double, 3, 1> z_gravity_hat = - extra_states_.r_b_n*f_b;
+  Eigen::Matrix<double, 3, 1> z_gravity_meas = g_n_;
+  Eigen::Matrix<double, 3, 1> d_z_gravity = z_gravity_meas - z_gravity_hat;
+
+  Eigen::Matrix<double, 16, 1> dx_gravity = k_gravity*d_z_gravity;
+
+  UpdateStates( dx_gravity );
 }
 
 //------------------------------------------------------------------------------
@@ -431,7 +461,7 @@ void ExtendedKalmanFilter::UpdateMag() ATLAS_NOEXCEPT {
   double theta = extra_states_.euler(2);
   double psi = extra_states_.euler(3);
 
-  double roll = psi;
+  double roll = phi;
   double pitch = theta;
   double yaw_hat = psi;
 
@@ -465,9 +495,17 @@ void ExtendedKalmanFilter::UpdateMag() ATLAS_NOEXCEPT {
 
   double r_mag = sigma_meas_mag * sigma_meas_mag;
 
-  double s_mag = h_mag * kalman_matrix_.p_ * h_mag.transpose();
+  double s_mag = h_mag * kalman_matrix_.p_ * h_mag.transpose() + r_mag;
   Eigen::Matrix<double, 16, 1> k_mag = kalman_matrix_.p_*h_mag.transpose() / s_mag;
 
+  double d_z_mag = yaw_meas - yaw_hat;
+
+  if( d_z_mag < M_PI )
+  {
+    Eigen::Matrix<double, 16, 1> dx_mag = k_mag*d_z_mag;
+    UpdateStates(dx_mag);
+    kalman_matrix_.p_ = (Eigen::Matrix<double, 16, 16>::Identity(16,16) - k_mag*h_mag)*kalman_matrix_.p_;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -480,6 +518,54 @@ void ExtendedKalmanFilter::UpdateDvl() ATLAS_NOEXCEPT {
 //
 void ExtendedKalmanFilter::UpdateBaro() ATLAS_NOEXCEPT {
   std::lock_guard<std::mutex> guard(processing_mutex_);
+}
+
+//------------------------------------------------------------------------------
+//
+void ExtendedKalmanFilter::UpdateStates( Eigen::Matrix<double, 16, 1> dx ) ATLAS_NOEXCEPT {
+  std::lock_guard<std::mutex> guard(processing_mutex_);
+
+  Eigen::Vector3d d_pos_n;
+  d_pos_n(0) = dx(0);
+  d_pos_n(1) = dx(1);
+  d_pos_n(2) = dx(2);
+  states_.pos_n = states_.pos_n + d_pos_n;
+
+  Eigen::Vector3d d_vel_n;
+  d_vel_n(0) = dx(3);
+  d_vel_n(1) = dx(4);
+  d_vel_n(2) = dx(5);
+  states_.vel_n = states_.vel_n + d_vel_n;
+  extra_states_.vel_b = extra_states_.r_n_b*states_.vel_n;
+
+  Eigen::Vector3d rho;
+  rho(0) = dx(6);
+  rho(1) = dx(7);
+  rho(2) = dx(8);
+
+  Eigen::Vector3d d_acc_bias;
+  d_acc_bias(0) = dx(9);
+  d_acc_bias(1) = dx(10);
+  d_acc_bias(2) = dx(11);
+  states_.acc_bias = states_.acc_bias + d_acc_bias;
+
+  Eigen::Vector3d d_gyro_bias;
+  d_gyro_bias(0) = dx(12);
+  d_gyro_bias(0) = dx(13);
+  d_gyro_bias(0) = dx(14);
+  states_.gyro_bias = states_.gyro_bias + d_gyro_bias;
+
+  double d_baro_bias;
+  d_baro_bias = dx(15);
+  states_.baro_bias = states_.baro_bias + d_baro_bias;
+
+  Eigen::Matrix3d r_n_b_tmp = atlas::QuatToRot(states_.b);
+  Eigen::Matrix3d r_b_n_tmp = r_n_b_tmp.transpose();
+  Eigen::Matrix3d p_rho = atlas::SkewMatrix(rho);
+  extra_states_.r_b_n = ( Eigen::Matrix3d::Identity(3,3) + p_rho )*r_b_n_tmp;
+  extra_states_.r_n_b = extra_states_.r_b_n.transpose();
+  states_.b = atlas::RotToQuat(extra_states_.r_n_b);
+  extra_states_.euler = atlas::QuatToEuler(states_.b);
 }
 
 //------------------------------------------------------------------------------

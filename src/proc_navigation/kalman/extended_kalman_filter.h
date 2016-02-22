@@ -120,6 +120,7 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration {
   void UpdateMag() ATLAS_NOEXCEPT;
   void UpdateDvl() ATLAS_NOEXCEPT;
   void UpdateBaro() ATLAS_NOEXCEPT;
+  void UpdateStates( Eigen::Matrix<double, 16, 1> dx ) ATLAS_NOEXCEPT;
 
   bool IsNewDataReady() const ATLAS_NOEXCEPT;
 
