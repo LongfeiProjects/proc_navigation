@@ -250,15 +250,25 @@ void ExtendedKalmanFilter::Run() {
       }
 
       if (mag_->IsNewDataReady() && active_mag) {
-        UpdateMag();
+        auto mag_msg = mag_->GetLastData();
+        Eigen::Vector3d mag_raw_data;
+        mag_raw_data(0) = mag_msg->magnetic_field.x;
+        mag_raw_data(1) = mag_msg->magnetic_field.y;
+        mag_raw_data(2) = mag_msg->magnetic_field.z;
+        UpdateMag(mag_raw_data);
       }
 
       if (dvl_->IsNewDataReady() && active_dvl) {
-        UpdateDvl();
+        auto dvl_msg = dvl_->GetLastData();
+        Eigen::Vector3d dvl_raw_data;
+        dvl_raw_data(0) = dvl_msg->twist.twist.linear.x;
+        dvl_raw_data(1) = dvl_msg->twist.twist.linear.y;
+        dvl_raw_data(2) = dvl_msg->twist.twist.linear.z;
+        UpdateDvl(dvl_raw_data);
       }
 
       if (baro_->IsNewDataReady() && active_baro) {
-        UpdateBaro();
+        UpdateBaro(baro_->GetLastData()->data);
       }
 
       /*
@@ -272,8 +282,8 @@ void ExtendedKalmanFilter::Run() {
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::Mechanization(Eigen::Vector3d f_b,
-                                         double dt) ATLAS_NOEXCEPT {
+void ExtendedKalmanFilter::Mechanization(const Eigen::Vector3d &f_b,
+                                         const double &dt) ATLAS_NOEXCEPT {
   Eigen::Vector3d p_dot_n = states_.vel_n;
 
   Eigen::Vector3d v_dot_n = extra_states_.r_b_n * f_b + g_n_;
@@ -384,7 +394,7 @@ void ExtendedKalmanFilter::ErrorsDynamicModelCalculation() ATLAS_NOEXCEPT {
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::KalmanStatesCovariancePropagation(double dt)
+void ExtendedKalmanFilter::KalmanStatesCovariancePropagation(const double &dt)
     ATLAS_NOEXCEPT {
   Eigen::Matrix<double, 16, 13> g_k = kalman_matrix_.g_;
   Eigen::Matrix<double, 16, 16> q, q_k;
@@ -406,7 +416,8 @@ void ExtendedKalmanFilter::KalmanStatesCovariancePropagation(double dt)
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::UpdateGravity(Eigen::Vector3d f_b) ATLAS_NOEXCEPT {
+void ExtendedKalmanFilter::UpdateGravity(const Eigen::Vector3d &f_b)
+    ATLAS_NOEXCEPT {
   Eigen::Matrix3d skew_g_n = atlas::SkewMatrix(g_n_);
 
   Eigen::Matrix<double, 3, 16> h_gravity =
@@ -445,14 +456,8 @@ void ExtendedKalmanFilter::UpdateGravity(Eigen::Vector3d f_b) ATLAS_NOEXCEPT {
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::UpdateMag() ATLAS_NOEXCEPT {
-  auto mag_msg = mag_->GetLastData();
-
-  Eigen::Vector3d mag_raw_data;
-  mag_raw_data(0) = mag_msg->magnetic_field.x;
-  mag_raw_data(1) = mag_msg->magnetic_field.y;
-  mag_raw_data(2) = mag_msg->magnetic_field.z;
-
+void ExtendedKalmanFilter::UpdateMag(const Eigen::Vector3d &mag_raw_data)
+    ATLAS_NOEXCEPT {
   Eigen::Vector3d m_b = mag_raw_data;
 
   double phi = extra_states_.euler(1);
@@ -511,13 +516,8 @@ void ExtendedKalmanFilter::UpdateMag() ATLAS_NOEXCEPT {
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::UpdateDvl() ATLAS_NOEXCEPT {
-  auto dvl_msg = dvl_->GetLastData();
-  Eigen::Vector3d dvl_raw_data;
-  dvl_raw_data(0) = dvl_msg->twist.twist.linear.x;
-  dvl_raw_data(1) = dvl_msg->twist.twist.linear.y;
-  dvl_raw_data(2) = dvl_msg->twist.twist.linear.z;
-
+void ExtendedKalmanFilter::UpdateDvl(const Eigen::Vector3d &dvl_raw_data)
+    ATLAS_NOEXCEPT {
   // Aiding Measurement Model
   Eigen::Vector3d v_b = dvl_raw_data;
   auto skew_l_pd = atlas::SkewMatrix(l_pd);
@@ -547,7 +547,7 @@ void ExtendedKalmanFilter::UpdateDvl() ATLAS_NOEXCEPT {
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::UpdateBaro() ATLAS_NOEXCEPT {}
+void ExtendedKalmanFilter::UpdateBaro(const double &baro_meas) ATLAS_NOEXCEPT {}
 
 //------------------------------------------------------------------------------
 //

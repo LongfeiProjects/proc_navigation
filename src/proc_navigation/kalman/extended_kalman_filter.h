@@ -134,19 +134,20 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration {
       const std::array<std::vector<double>, 3> &g,
       const std::array<std::vector<double>, 3> &m) ATLAS_NOEXCEPT;
 
-  void Mechanization(Eigen::Vector3d f_b, double dt) ATLAS_NOEXCEPT;
+  void Mechanization(const Eigen::Vector3d &f_b,
+                     const double &dt) ATLAS_NOEXCEPT;
 
   void ErrorsDynamicModelCalculation() ATLAS_NOEXCEPT;
 
-  void KalmanStatesCovariancePropagation(double dt) ATLAS_NOEXCEPT;
+  void KalmanStatesCovariancePropagation(const double &dt) ATLAS_NOEXCEPT;
 
-  void UpdateGravity(Eigen::Vector3d f_b) ATLAS_NOEXCEPT;
+  void UpdateGravity(const Eigen::Vector3d &) ATLAS_NOEXCEPT;
 
-  void UpdateMag() ATLAS_NOEXCEPT;
+  void UpdateMag(const Eigen::Vector3d &) ATLAS_NOEXCEPT;
 
-  void UpdateDvl() ATLAS_NOEXCEPT;
+  void UpdateDvl(const Eigen::Vector3d &) ATLAS_NOEXCEPT;
 
-  void UpdateBaro() ATLAS_NOEXCEPT;
+  void UpdateBaro(const double &) ATLAS_NOEXCEPT;
 
   void UpdateStates(const Eigen::Matrix<double, 16, 1> &dx) ATLAS_NOEXCEPT;
 
