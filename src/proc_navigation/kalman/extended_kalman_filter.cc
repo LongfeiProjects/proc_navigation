@@ -54,7 +54,7 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(
                                                    criterions_(),
                                                    is_stationnary_(false),
                                                    ge_(),
-                                                   g_n_(){
+                                                   g_n_() {
   // Initialize the Kalman filter here
   Initialize();
 
@@ -89,7 +89,7 @@ void ExtendedKalmanFilter::Initialize() {
   states_.gyro_bias = Eigen::Vector3d(0, 0, 0);
   states_.baro_bias = 0;
 
-  kalman_matrix_.qc_ = Eigen::Matrix<double,13,13>::Zero(13,13);
+  kalman_matrix_.qc_ = Eigen::Matrix<double, 13, 13>::Zero(13, 13);
   kalman_matrix_.qc_(0, 0) = sigma_meas_acc;
   kalman_matrix_.qc_(1, 1) = sigma_meas_acc;
   kalman_matrix_.qc_(2, 2) = sigma_meas_acc;
@@ -104,7 +104,7 @@ void ExtendedKalmanFilter::Initialize() {
   kalman_matrix_.qc_(11, 11) = sigma_walk_bias_gyr;
   kalman_matrix_.qc_(12, 12) = sigma_walk_bias_baro;
 
-  kalman_matrix_.p_ = Eigen::Matrix<double,16,16>::Zero(16,16);
+  kalman_matrix_.p_ = Eigen::Matrix<double, 16, 16>::Zero(16, 16);
   kalman_matrix_.p_(0, 0) = sigma0_pos_x;
   kalman_matrix_.p_(1, 1) = sigma0_pos_y;
   kalman_matrix_.p_(2, 2) = sigma0_pos_z;
@@ -135,7 +135,7 @@ Eigen::Quaterniond ExtendedKalmanFilter::CalculateInitialRotationMatrix(
   g_mean(1) = -imu_sign_y * atlas::Mean(std::get<1>(g));
   g_mean(2) = -imu_sign_z * atlas::Mean(std::get<2>(g));
   ge_ = g_mean.norm();
-  g_n_ = Eigen::Vector3d(0,0,ge_);
+  g_n_ = Eigen::Vector3d(0, 0, ge_);
 
   // Calculate initial roll angle - Equation 10.14 - Farrell
   double roll = std::atan2(g_mean(1), g_mean(2));
@@ -218,7 +218,7 @@ void ExtendedKalmanFilter::Run() {
       extra_states_.w_ib_b = gyr_raw_data - states_.gyro_bias;
       criterions_.ufw = extra_states_.w_ib_b.squaredNorm();
 
-      states_.b = atlas::ExactQuat(extra_states_.w_ib_b,dt,states_.b);
+      states_.b = atlas::ExactQuat(extra_states_.w_ib_b, dt, states_.b);
       extra_states_.r_n_b = Eigen::Matrix3d(states_.b);
       extra_states_.r_b_n = extra_states_.r_n_b.transpose();
       extra_states_.euler = atlas::QuatToEuler(states_.b);
@@ -227,20 +227,20 @@ void ExtendedKalmanFilter::Run() {
        * PROPAGATION
        */
 
-      Mechanization( f_b, dt );
+      Mechanization(f_b, dt);
 
       ErrorsDynamicModelCalculation();
 
-      KalmanStatesCovariancePropagation( dt );
+      KalmanStatesCovariancePropagation(dt);
 
-      Eigen::Vector3d a_b = extra_states_.r_b_n*f_b + g_n_;
+      Eigen::Vector3d a_b = extra_states_.r_b_n * f_b + g_n_;
       criterions_.ufab = a_b.norm();
       criterions_.ufan = f_b.norm() - ge_;
 
-      if( criterions_.ufab < crit_station_acc && criterions_.ufan < crit_station_norm ) {
+      if (criterions_.ufab < crit_station_acc &&
+          criterions_.ufan < crit_station_norm) {
         is_stationnary_ = true;
-      }else
-      {
+      } else {
         is_stationnary_ = false;
       }
 
@@ -264,27 +264,28 @@ void ExtendedKalmanFilter::Run() {
         UpdateBaro();
       }
 
-     /*
-     * COVARIANCE MATRIX SYMMETRIZATION
-     */
-      kalman_matrix_.p_ = (kalman_matrix_.p_ + kalman_matrix_.p_.transpose()) / 2;
-
+      /*
+      * COVARIANCE MATRIX SYMMETRIZATION
+      */
+      kalman_matrix_.p_ =
+          (kalman_matrix_.p_ + kalman_matrix_.p_.transpose()) / 2;
     }
   }
 }
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::Mechanization(Eigen::Vector3d f_b, double dt) ATLAS_NOEXCEPT {
+void ExtendedKalmanFilter::Mechanization(Eigen::Vector3d f_b,
+                                         double dt) ATLAS_NOEXCEPT {
   std::lock_guard<std::mutex> guard(processing_mutex_);
 
   Eigen::Vector3d p_dot_n = states_.vel_n;
 
-  Eigen::Vector3d v_dot_n = extra_states_.r_b_n*f_b + g_n_;
+  Eigen::Vector3d v_dot_n = extra_states_.r_b_n * f_b + g_n_;
 
-  states_.pos_n = states_.pos_n + p_dot_n*dt;
-  states_.vel_n = states_.vel_n + v_dot_n*dt;
-  extra_states_.vel_b = extra_states_.r_n_b*states_.vel_n;
+  states_.pos_n = states_.pos_n + p_dot_n * dt;
+  states_.vel_n = states_.vel_n + v_dot_n * dt;
+  extra_states_.vel_b = extra_states_.r_n_b * states_.vel_n;
 }
 
 //------------------------------------------------------------------------------
@@ -292,155 +293,165 @@ void ExtendedKalmanFilter::Mechanization(Eigen::Vector3d f_b, double dt) ATLAS_N
 void ExtendedKalmanFilter::ErrorsDynamicModelCalculation() ATLAS_NOEXCEPT {
   std::lock_guard<std::mutex> guard(processing_mutex_);
 
-  Eigen::Matrix3d f_pv = Eigen::Matrix3d::Identity(3,3);
+  Eigen::Matrix3d f_pv = Eigen::Matrix3d::Identity(3, 3);
   Eigen::Matrix3d f_vr = atlas::SkewMatrix(g_n_);
   Eigen::Matrix3d f_vbf = -extra_states_.r_b_n;
   Eigen::Matrix3d f_rbg = -extra_states_.r_b_n;
 
-  kalman_matrix_.f_ = Eigen::Matrix<double,16,16>::Zero(16,16);
-  kalman_matrix_.f_(0,3) = f_pv(0, 0);
-  kalman_matrix_.f_(0,4) = f_pv(0, 1);
-  kalman_matrix_.f_(0,5) = f_pv(0, 2);
-  kalman_matrix_.f_(1,3) = f_pv(1, 0);
-  kalman_matrix_.f_(1,4) = f_pv(1, 1);
-  kalman_matrix_.f_(1,5) = f_pv(1, 2);
-  kalman_matrix_.f_(2,3) = f_pv(2, 0);
-  kalman_matrix_.f_(2,4) = f_pv(2, 1);
-  kalman_matrix_.f_(2,5) = f_pv(2, 2);
+  kalman_matrix_.f_ = Eigen::Matrix<double, 16, 16>::Zero(16, 16);
+  kalman_matrix_.f_(0, 3) = f_pv(0, 0);
+  kalman_matrix_.f_(0, 4) = f_pv(0, 1);
+  kalman_matrix_.f_(0, 5) = f_pv(0, 2);
+  kalman_matrix_.f_(1, 3) = f_pv(1, 0);
+  kalman_matrix_.f_(1, 4) = f_pv(1, 1);
+  kalman_matrix_.f_(1, 5) = f_pv(1, 2);
+  kalman_matrix_.f_(2, 3) = f_pv(2, 0);
+  kalman_matrix_.f_(2, 4) = f_pv(2, 1);
+  kalman_matrix_.f_(2, 5) = f_pv(2, 2);
 
-  kalman_matrix_.f_(3,6) = f_vr(0, 0);
-  kalman_matrix_.f_(3,7) = f_vr(0, 1);
-  kalman_matrix_.f_(3,8) = f_vr(0, 2);
-  kalman_matrix_.f_(4,6) = f_vr(1, 0);
-  kalman_matrix_.f_(4,7) = f_vr(1, 1);
-  kalman_matrix_.f_(4,8) = f_vr(1, 2);
-  kalman_matrix_.f_(5,6) = f_vr(2, 0);
-  kalman_matrix_.f_(5,7) = f_vr(2, 1);
-  kalman_matrix_.f_(5,8) = f_vr(2, 2);
+  kalman_matrix_.f_(3, 6) = f_vr(0, 0);
+  kalman_matrix_.f_(3, 7) = f_vr(0, 1);
+  kalman_matrix_.f_(3, 8) = f_vr(0, 2);
+  kalman_matrix_.f_(4, 6) = f_vr(1, 0);
+  kalman_matrix_.f_(4, 7) = f_vr(1, 1);
+  kalman_matrix_.f_(4, 8) = f_vr(1, 2);
+  kalman_matrix_.f_(5, 6) = f_vr(2, 0);
+  kalman_matrix_.f_(5, 7) = f_vr(2, 1);
+  kalman_matrix_.f_(5, 8) = f_vr(2, 2);
 
-  kalman_matrix_.f_(3,9) = f_vbf(0, 0);
-  kalman_matrix_.f_(3,10) = f_vbf(0, 1);
-  kalman_matrix_.f_(3,11) = f_vbf(0, 2);
-  kalman_matrix_.f_(4,9) = f_vbf(1, 0);
-  kalman_matrix_.f_(4,10) = f_vbf(1, 1);
-  kalman_matrix_.f_(4,11) = f_vbf(1, 2);
-  kalman_matrix_.f_(5,9) = f_vbf(2, 0);
-  kalman_matrix_.f_(5,10) = f_vbf(2, 1);
-  kalman_matrix_.f_(5,11) = f_vbf(2, 2);
+  kalman_matrix_.f_(3, 9) = f_vbf(0, 0);
+  kalman_matrix_.f_(3, 10) = f_vbf(0, 1);
+  kalman_matrix_.f_(3, 11) = f_vbf(0, 2);
+  kalman_matrix_.f_(4, 9) = f_vbf(1, 0);
+  kalman_matrix_.f_(4, 10) = f_vbf(1, 1);
+  kalman_matrix_.f_(4, 11) = f_vbf(1, 2);
+  kalman_matrix_.f_(5, 9) = f_vbf(2, 0);
+  kalman_matrix_.f_(5, 10) = f_vbf(2, 1);
+  kalman_matrix_.f_(5, 11) = f_vbf(2, 2);
 
-  kalman_matrix_.f_(6,12) = f_rbg(0, 0);
-  kalman_matrix_.f_(6,13) = f_rbg(0, 1);
-  kalman_matrix_.f_(6,14) = f_rbg(0, 2);
-  kalman_matrix_.f_(7,12) = f_rbg(1, 0);
-  kalman_matrix_.f_(7,13) = f_rbg(1, 1);
-  kalman_matrix_.f_(7,14) = f_rbg(1, 2);
-  kalman_matrix_.f_(8,12) = f_rbg(2, 0);
-  kalman_matrix_.f_(8,13) = f_rbg(2, 1);
-  kalman_matrix_.f_(8,14) = f_rbg(2, 2);
+  kalman_matrix_.f_(6, 12) = f_rbg(0, 0);
+  kalman_matrix_.f_(6, 13) = f_rbg(0, 1);
+  kalman_matrix_.f_(6, 14) = f_rbg(0, 2);
+  kalman_matrix_.f_(7, 12) = f_rbg(1, 0);
+  kalman_matrix_.f_(7, 13) = f_rbg(1, 1);
+  kalman_matrix_.f_(7, 14) = f_rbg(1, 2);
+  kalman_matrix_.f_(8, 12) = f_rbg(2, 0);
+  kalman_matrix_.f_(8, 13) = f_rbg(2, 1);
+  kalman_matrix_.f_(8, 14) = f_rbg(2, 2);
 
   Eigen::Matrix3d g_acc = -extra_states_.r_b_n;
   Eigen::Matrix3d g_gyr = -extra_states_.r_b_n;
-  Eigen::Matrix3d g_ba = Eigen::Matrix3d::Identity(3,3);
-  Eigen::Matrix3d g_bg = Eigen::Matrix3d::Identity(3,3);
+  Eigen::Matrix3d g_ba = Eigen::Matrix3d::Identity(3, 3);
+  Eigen::Matrix3d g_bg = Eigen::Matrix3d::Identity(3, 3);
   double g_bb = 1;
 
-  kalman_matrix_.g_ = Eigen::Matrix<double,16,13>::Zero(16,13);
-  kalman_matrix_.g_(3,0) = g_acc(0, 0);
-  kalman_matrix_.g_(3,1) = g_acc(0, 1);
-  kalman_matrix_.g_(3,2) = g_acc(0, 2);
-  kalman_matrix_.g_(4,0) = g_acc(1, 0);
-  kalman_matrix_.g_(4,1) = g_acc(1, 1);
-  kalman_matrix_.g_(4,2) = g_acc(1, 2);
-  kalman_matrix_.g_(5,0) = g_acc(2, 0);
-  kalman_matrix_.g_(5,1) = g_acc(2, 1);
-  kalman_matrix_.g_(5,2) = g_acc(2, 2);
+  kalman_matrix_.g_ = Eigen::Matrix<double, 16, 13>::Zero(16, 13);
+  kalman_matrix_.g_(3, 0) = g_acc(0, 0);
+  kalman_matrix_.g_(3, 1) = g_acc(0, 1);
+  kalman_matrix_.g_(3, 2) = g_acc(0, 2);
+  kalman_matrix_.g_(4, 0) = g_acc(1, 0);
+  kalman_matrix_.g_(4, 1) = g_acc(1, 1);
+  kalman_matrix_.g_(4, 2) = g_acc(1, 2);
+  kalman_matrix_.g_(5, 0) = g_acc(2, 0);
+  kalman_matrix_.g_(5, 1) = g_acc(2, 1);
+  kalman_matrix_.g_(5, 2) = g_acc(2, 2);
 
-  kalman_matrix_.g_(6,3) = g_gyr(0, 0);
-  kalman_matrix_.g_(6,4) = g_gyr(0, 1);
-  kalman_matrix_.g_(6,5) = g_gyr(0, 2);
-  kalman_matrix_.g_(7,3) = g_gyr(1, 0);
-  kalman_matrix_.g_(7,4) = g_gyr(1, 1);
-  kalman_matrix_.g_(7,5) = g_gyr(1, 2);
-  kalman_matrix_.g_(8,3) = g_gyr(2, 0);
-  kalman_matrix_.g_(8,4) = g_gyr(2, 1);
-  kalman_matrix_.g_(8,5) = g_gyr(2, 2);
+  kalman_matrix_.g_(6, 3) = g_gyr(0, 0);
+  kalman_matrix_.g_(6, 4) = g_gyr(0, 1);
+  kalman_matrix_.g_(6, 5) = g_gyr(0, 2);
+  kalman_matrix_.g_(7, 3) = g_gyr(1, 0);
+  kalman_matrix_.g_(7, 4) = g_gyr(1, 1);
+  kalman_matrix_.g_(7, 5) = g_gyr(1, 2);
+  kalman_matrix_.g_(8, 3) = g_gyr(2, 0);
+  kalman_matrix_.g_(8, 4) = g_gyr(2, 1);
+  kalman_matrix_.g_(8, 5) = g_gyr(2, 2);
 
-  kalman_matrix_.g_(9,6) = g_ba(0, 0);
-  kalman_matrix_.g_(9,7) = g_ba(0, 1);
-  kalman_matrix_.g_(9,8) = g_ba(0, 2);
-  kalman_matrix_.g_(10,6) = g_ba(1, 0);
-  kalman_matrix_.g_(10,7) = g_ba(1, 1);
-  kalman_matrix_.g_(10,8) = g_ba(1, 2);
-  kalman_matrix_.g_(11,6) = g_ba(2, 0);
-  kalman_matrix_.g_(11,7) = g_ba(2, 1);
-  kalman_matrix_.g_(11,8) = g_ba(2, 2);
+  kalman_matrix_.g_(9, 6) = g_ba(0, 0);
+  kalman_matrix_.g_(9, 7) = g_ba(0, 1);
+  kalman_matrix_.g_(9, 8) = g_ba(0, 2);
+  kalman_matrix_.g_(10, 6) = g_ba(1, 0);
+  kalman_matrix_.g_(10, 7) = g_ba(1, 1);
+  kalman_matrix_.g_(10, 8) = g_ba(1, 2);
+  kalman_matrix_.g_(11, 6) = g_ba(2, 0);
+  kalman_matrix_.g_(11, 7) = g_ba(2, 1);
+  kalman_matrix_.g_(11, 8) = g_ba(2, 2);
 
-  kalman_matrix_.g_(12,9) = g_bg(0, 0);
-  kalman_matrix_.g_(12,10) = g_bg(0, 1);
-  kalman_matrix_.g_(12,11) = g_bg(0, 2);
-  kalman_matrix_.g_(13,9) = g_bg(1, 0);
-  kalman_matrix_.g_(13,10) = g_bg(1, 1);
-  kalman_matrix_.g_(13,11) = g_bg(1, 2);
-  kalman_matrix_.g_(14,9) = g_bg(2, 0);
-  kalman_matrix_.g_(14,10) = g_bg(2, 1);
-  kalman_matrix_.g_(14,11) = g_bg(2, 2);
+  kalman_matrix_.g_(12, 9) = g_bg(0, 0);
+  kalman_matrix_.g_(12, 10) = g_bg(0, 1);
+  kalman_matrix_.g_(12, 11) = g_bg(0, 2);
+  kalman_matrix_.g_(13, 9) = g_bg(1, 0);
+  kalman_matrix_.g_(13, 10) = g_bg(1, 1);
+  kalman_matrix_.g_(13, 11) = g_bg(1, 2);
+  kalman_matrix_.g_(14, 9) = g_bg(2, 0);
+  kalman_matrix_.g_(14, 10) = g_bg(2, 1);
+  kalman_matrix_.g_(14, 11) = g_bg(2, 2);
 
-  kalman_matrix_.g_(15,12) = g_bb;
-
+  kalman_matrix_.g_(15, 12) = g_bb;
 }
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::KalmanStatesCovariancePropagation(double dt) ATLAS_NOEXCEPT {
+void ExtendedKalmanFilter::KalmanStatesCovariancePropagation(double dt)
+    ATLAS_NOEXCEPT {
   std::lock_guard<std::mutex> guard(processing_mutex_);
 
   Eigen::Matrix<double, 16, 13> g_k = kalman_matrix_.g_;
   Eigen::Matrix<double, 16, 16> q, q_k;
   Eigen::Matrix<double, 16, 16> phi_k;
 
-  q = g_k*kalman_matrix_.qc_*g_k.transpose();
+  q = g_k * kalman_matrix_.qc_ * g_k.transpose();
 
-  q_k = q*dt;
-  q_k(0,0) = q_k(0,0) + criterions_.ufw*dt;
-  q_k(1,1) = q_k(1,1) + criterions_.ufw*dt;
-  q_k(2,2) = q_k(2,2) + criterions_.ufw*dt;
+  q_k = q * dt;
+  q_k(0, 0) = q_k(0, 0) + criterions_.ufw * dt;
+  q_k(1, 1) = q_k(1, 1) + criterions_.ufw * dt;
+  q_k(2, 2) = q_k(2, 2) + criterions_.ufw * dt;
 
-  phi_k = Eigen::Matrix<double, 16, 16>::Identity(16,16) + kalman_matrix_.f_*dt;
+  phi_k =
+      Eigen::Matrix<double, 16, 16>::Identity(16, 16) + kalman_matrix_.f_ * dt;
 
-  kalman_matrix_.p_ = phi_k*kalman_matrix_.p_*kalman_matrix_.p_.transpose() + q_k;
+  kalman_matrix_.p_ =
+      phi_k * kalman_matrix_.p_ * kalman_matrix_.p_.transpose() + q_k;
 }
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::UpdateGravity( Eigen::Vector3d f_b ) ATLAS_NOEXCEPT {
+void ExtendedKalmanFilter::UpdateGravity(Eigen::Vector3d f_b) ATLAS_NOEXCEPT {
   std::lock_guard<std::mutex> guard(processing_mutex_);
 
   Eigen::Matrix3d skew_g_n = atlas::SkewMatrix(g_n_);
 
-  Eigen::Matrix<double, 3, 16> h_gravity = Eigen::Matrix<double, 3, 16>::Zero(1,16);
-  h_gravity(0,6) = -skew_g_n(0,0);
-  h_gravity(0,7) = -skew_g_n(0,1);
-  h_gravity(0,8) = -skew_g_n(0,2);
-  h_gravity(1,6) = -skew_g_n(1,0);
-  h_gravity(1,7) = -skew_g_n(1,1);
-  h_gravity(1,8) = -skew_g_n(1,2);
-  h_gravity(2,6) = -skew_g_n(2,0);
-  h_gravity(2,7) = -skew_g_n(2,1);
-  h_gravity(2,8) = -skew_g_n(2,2);
+  Eigen::Matrix<double, 3, 16> h_gravity =
+      Eigen::Matrix<double, 3, 16>::Zero(1, 16);
+  h_gravity(0, 6) = -skew_g_n(0, 0);
+  h_gravity(0, 7) = -skew_g_n(0, 1);
+  h_gravity(0, 8) = -skew_g_n(0, 2);
+  h_gravity(1, 6) = -skew_g_n(1, 0);
+  h_gravity(1, 7) = -skew_g_n(1, 1);
+  h_gravity(1, 8) = -skew_g_n(1, 2);
+  h_gravity(2, 6) = -skew_g_n(2, 0);
+  h_gravity(2, 7) = -skew_g_n(2, 1);
+  h_gravity(2, 8) = -skew_g_n(2, 2);
 
-  Eigen::Matrix<double, 3, 3> r_gravity = sigma_meas_gravity*sigma_meas_gravity*(criterions_.ufab + criterions_.ufan + criterions_.ufw)*Eigen::Matrix3d::Identity(3,3);
+  Eigen::Matrix<double, 3, 3> r_gravity =
+      sigma_meas_gravity * sigma_meas_gravity *
+      (criterions_.ufab + criterions_.ufan + criterions_.ufw) *
+      Eigen::Matrix3d::Identity(3, 3);
 
-  Eigen::Matrix<double, 3, 3> s_gravity = h_gravity * kalman_matrix_.p_ * h_gravity.transpose() + r_gravity;
-  Eigen::Matrix<double, 16, 3> k_gravity = kalman_matrix_.p_*h_gravity.transpose() * s_gravity.inverse();
-  kalman_matrix_.p_ = (Eigen::Matrix<double, 16, 16>::Identity(16,16) - k_gravity*h_gravity)*kalman_matrix_.p_;
+  Eigen::Matrix<double, 3, 3> s_gravity =
+      h_gravity * kalman_matrix_.p_ * h_gravity.transpose() + r_gravity;
+  Eigen::Matrix<double, 16, 3> k_gravity =
+      kalman_matrix_.p_ * h_gravity.transpose() * s_gravity.inverse();
+  kalman_matrix_.p_ = (Eigen::Matrix<double, 16, 16>::Identity(16, 16) -
+                       k_gravity * h_gravity) *
+                      kalman_matrix_.p_;
 
-  Eigen::Matrix<double, 3, 1> z_gravity_hat = - extra_states_.r_b_n*f_b;
+  Eigen::Matrix<double, 3, 1> z_gravity_hat = -extra_states_.r_b_n * f_b;
   Eigen::Matrix<double, 3, 1> z_gravity_meas = g_n_;
   Eigen::Matrix<double, 3, 1> d_z_gravity = z_gravity_meas - z_gravity_hat;
 
-  Eigen::Matrix<double, 16, 1> dx_gravity = k_gravity*d_z_gravity;
+  Eigen::Matrix<double, 16, 1> dx_gravity = k_gravity * d_z_gravity;
 
-  UpdateStates( dx_gravity );
+  UpdateStates(dx_gravity);
 }
 
 //------------------------------------------------------------------------------
@@ -465,46 +476,49 @@ void ExtendedKalmanFilter::UpdateMag() ATLAS_NOEXCEPT {
   double pitch = theta;
   double yaw_hat = psi;
 
-  Eigen::Matrix3d r_b2w = Eigen::Matrix3d::Zero(3,3);
-  r_b2w(0,0) = std::cos(pitch);
-  r_b2w(0,1) = std::sin(pitch)*std::sin(roll);
-  r_b2w(0,2) = std::sin(pitch)*std::cos(roll);
-  r_b2w(1,1) = std::cos(roll);
-  r_b2w(1,2) = -std::sin(roll);
-  r_b2w(2,0) = -std::sin(pitch);
-  r_b2w(2,1) = std::cos(pitch)*std::sin(roll);
-  r_b2w(2,2) = std::cos(pitch)*std::cos(roll);
+  Eigen::Matrix3d r_b2w = Eigen::Matrix3d::Zero(3, 3);
+  r_b2w(0, 0) = std::cos(pitch);
+  r_b2w(0, 1) = std::sin(pitch) * std::sin(roll);
+  r_b2w(0, 2) = std::sin(pitch) * std::cos(roll);
+  r_b2w(1, 1) = std::cos(roll);
+  r_b2w(1, 2) = -std::sin(roll);
+  r_b2w(2, 0) = -std::sin(pitch);
+  r_b2w(2, 1) = std::cos(pitch) * std::sin(roll);
+  r_b2w(2, 2) = std::cos(pitch) * std::cos(roll);
 
-  Eigen::Vector3d m_w = r_b2w*m_b;
-  double yaw_meas = std::atan2(-m_w(2),m_w(1));
+  Eigen::Vector3d m_w = r_b2w * m_b;
+  double yaw_meas = std::atan2(-m_w(2), m_w(1));
 
-  Eigen::Matrix3d omega_t = Eigen::Matrix3d::Zero(3,3);
-  omega_t(0,0) = std::cos(psi)*std::cos(theta);
-  omega_t(0,1) = -std::sin(psi);
-  omega_t(1,0) = std::sin(psi)*std::cos(theta);
-  omega_t(1,1) = std::cos(psi);
-  omega_t(2,0) = -std::sin(theta);
-  omega_t(2,2) = 1;
+  Eigen::Matrix3d omega_t = Eigen::Matrix3d::Zero(3, 3);
+  omega_t(0, 0) = std::cos(psi) * std::cos(theta);
+  omega_t(0, 1) = -std::sin(psi);
+  omega_t(1, 0) = std::sin(psi) * std::cos(theta);
+  omega_t(1, 1) = std::cos(psi);
+  omega_t(2, 0) = -std::sin(theta);
+  omega_t(2, 2) = 1;
 
   Eigen::Matrix3d inv_omega_t = omega_t.inverse();
 
-  Eigen::Matrix<double, 1, 16> h_mag = Eigen::Matrix<double, 1, 16>::Zero(1,16);
-  h_mag(0,6) = inv_omega_t(2,0);
-  h_mag(0,7) = inv_omega_t(2,1);
-  h_mag(0,8) = inv_omega_t(2,2);
+  Eigen::Matrix<double, 1, 16> h_mag =
+      Eigen::Matrix<double, 1, 16>::Zero(1, 16);
+  h_mag(0, 6) = inv_omega_t(2, 0);
+  h_mag(0, 7) = inv_omega_t(2, 1);
+  h_mag(0, 8) = inv_omega_t(2, 2);
 
   double r_mag = sigma_meas_mag * sigma_meas_mag;
 
   double s_mag = h_mag * kalman_matrix_.p_ * h_mag.transpose() + r_mag;
-  Eigen::Matrix<double, 16, 1> k_mag = kalman_matrix_.p_*h_mag.transpose() / s_mag;
+  Eigen::Matrix<double, 16, 1> k_mag =
+      kalman_matrix_.p_ * h_mag.transpose() / s_mag;
 
   double d_z_mag = yaw_meas - yaw_hat;
 
-  if( d_z_mag < M_PI )
-  {
-    Eigen::Matrix<double, 16, 1> dx_mag = k_mag*d_z_mag;
+  if (d_z_mag < M_PI) {
+    Eigen::Matrix<double, 16, 1> dx_mag = k_mag * d_z_mag;
     UpdateStates(dx_mag);
-    kalman_matrix_.p_ = (Eigen::Matrix<double, 16, 16>::Identity(16,16) - k_mag*h_mag)*kalman_matrix_.p_;
+    kalman_matrix_.p_ =
+        (Eigen::Matrix<double, 16, 16>::Identity(16, 16) - k_mag * h_mag) *
+        kalman_matrix_.p_;
   }
 }
 
@@ -522,21 +536,23 @@ void ExtendedKalmanFilter::UpdateDvl() ATLAS_NOEXCEPT {
   // Aiding Measurement Model
   Eigen::Vector3d v_b = dvl_raw_data;
   auto skew_l_pd = atlas::SkewMatrix(l_pd);
-  Eigen::Matrix<double, 3, 16> h_dvl = Eigen::Matrix<double, 3, 12>::Zero();
-  h_dvl(0,3) = 1;
-  h_dvl(1,4) = 1;
-  h_dvl(2,5) = 1;
-  h_dvl(0,14) = skew_l_pd(0);
-  h_dvl(1,14) = skew_l_pd(1);
-  h_dvl(2,14) = skew_l_pd(2);
+  Eigen::Matrix<double, 3, 16> h_dvl = Eigen::Matrix<double, 3, 16>::Zero();
+  h_dvl(0, 3) = 1;
+  h_dvl(1, 4) = 1;
+  h_dvl(2, 5) = 1;
+  h_dvl(0, 14) = skew_l_pd(0);
+  h_dvl(1, 14) = skew_l_pd(1);
+  h_dvl(2, 14) = skew_l_pd(2);
 
-  Eigen::Matrix3d r_dvl = Eigen::Vector3d(sigma_meas_dvl_x, sigma_meas_dvl_y, sigma_meas_dvl_z).diagonal();
-  auto k_dvl_tmp = h_dvl*kalman_matrix_.p_*h_dvl.transpose() + r_dvl;
-  auto k_dvl = kalman_matrix_.p_*h_dvl.transpose() * k_dvl_tmp.inverse();
+  Eigen::Matrix3d r_dvl = Eigen::Matrix<double, 1, 3>(sigma_meas_dvl_x, sigma_meas_dvl_y,
+                                          sigma_meas_dvl_z).asDiagonal();
+  auto k_dvl_tmp = h_dvl * kalman_matrix_.p_ * h_dvl.transpose() + r_dvl;
+  auto k_dvl = kalman_matrix_.p_ * h_dvl.transpose() * k_dvl_tmp.inverse();
   Eigen::Matrix<double, 16, 16> eye16 = Eigen::Matrix<double, 16, 16>::Zero();
-  kalman_matrix_.p_ = (eye16-k_dvl*h_dvl)*kalman_matrix_.p_;
+  kalman_matrix_.p_ = (eye16 - k_dvl * h_dvl) * kalman_matrix_.p_;
   // Prediction
-  auto dvl_hat = extra_states_.r_n_b*states_.vel_n + extra_states_.w_ib_b.cross(l_pd);
+  auto dvl_hat =
+      extra_states_.r_n_b * states_.vel_n + extra_states_.w_ib_b.cross(l_pd);
 
   auto d_z_dvl = dvl_raw_data - dvl_hat;
   auto d_x = k_dvl * d_z_dvl;
@@ -552,7 +568,8 @@ void ExtendedKalmanFilter::UpdateBaro() ATLAS_NOEXCEPT {
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::UpdateStates( Eigen::Matrix<double, 16, 1> dx ) ATLAS_NOEXCEPT {
+void ExtendedKalmanFilter::UpdateStates(const Eigen::Matrix<double, 16, 1> &dx)
+    ATLAS_NOEXCEPT {
   std::lock_guard<std::mutex> guard(processing_mutex_);
 
   Eigen::Vector3d d_pos_n;
@@ -566,7 +583,7 @@ void ExtendedKalmanFilter::UpdateStates( Eigen::Matrix<double, 16, 1> dx ) ATLAS
   d_vel_n(1) = dx(4);
   d_vel_n(2) = dx(5);
   states_.vel_n = states_.vel_n + d_vel_n;
-  extra_states_.vel_b = extra_states_.r_n_b*states_.vel_n;
+  extra_states_.vel_b = extra_states_.r_n_b * states_.vel_n;
 
   Eigen::Vector3d rho;
   rho(0) = dx(6);
@@ -592,7 +609,7 @@ void ExtendedKalmanFilter::UpdateStates( Eigen::Matrix<double, 16, 1> dx ) ATLAS
   Eigen::Matrix3d r_n_b_tmp = atlas::QuatToRot(states_.b);
   Eigen::Matrix3d r_b_n_tmp = r_n_b_tmp.transpose();
   Eigen::Matrix3d p_rho = atlas::SkewMatrix(rho);
-  extra_states_.r_b_n = ( Eigen::Matrix3d::Identity(3,3) + p_rho )*r_b_n_tmp;
+  extra_states_.r_b_n = (Eigen::Matrix3d::Identity(3, 3) + p_rho) * r_b_n_tmp;
   extra_states_.r_n_b = extra_states_.r_b_n.transpose();
   states_.b = atlas::RotToQuat(extra_states_.r_n_b);
   extra_states_.euler = atlas::QuatToEuler(states_.b);
