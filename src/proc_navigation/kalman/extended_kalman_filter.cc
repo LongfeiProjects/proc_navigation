@@ -512,6 +512,36 @@ void ExtendedKalmanFilter::UpdateMag() ATLAS_NOEXCEPT {
 //
 void ExtendedKalmanFilter::UpdateDvl() ATLAS_NOEXCEPT {
   std::lock_guard<std::mutex> guard(processing_mutex_);
+
+  auto dvl_msg = dvl_->GetLastData();
+  Eigen::Vector3d dvl_raw_data;
+  dvl_raw_data(0) = dvl_msg->twist.twist.linear.x;
+  dvl_raw_data(1) = dvl_msg->twist.twist.linear.y;
+  dvl_raw_data(2) = dvl_msg->twist.twist.linear.z;
+
+  // Aiding Measurement Model
+  Eigen::Vector3d v_b = dvl_raw_data;
+  auto skew_l_pd = atlas::SkewMatrix(l_pd);
+  Eigen::Matrix<double, 3, 16> h_dvl = Eigen::Matrix<double, 3, 12>::Zero();
+  h_dvl(0,3) = 1;
+  h_dvl(1,4) = 1;
+  h_dvl(2,5) = 1;
+  h_dvl(0,14) = skew_l_pd(0);
+  h_dvl(1,14) = skew_l_pd(1);
+  h_dvl(2,14) = skew_l_pd(2);
+
+  Eigen::Matrix3d r_dvl = Eigen::Vector3d(sigma_meas_dvl_x, sigma_meas_dvl_y, sigma_meas_dvl_z).diagonal();
+  auto k_dvl_tmp = h_dvl*kalman_matrix_.p_*h_dvl.transpose() + r_dvl;
+  auto k_dvl = kalman_matrix_.p_*h_dvl.transpose() * k_dvl_tmp.inverse();
+  Eigen::Matrix<double, 16, 16> eye16 = Eigen::Matrix<double, 16, 16>::Zero();
+  kalman_matrix_.p_ = (eye16-k_dvl*h_dvl)*kalman_matrix_.p_;
+  // Prediction
+  auto dvl_hat = extra_states_.r_n_b*states_.vel_n + extra_states_.w_ib_b.cross(l_pd);
+
+  auto d_z_dvl = dvl_raw_data - dvl_hat;
+  auto d_x = k_dvl * d_z_dvl;
+
+  // Call update state here
 }
 
 //------------------------------------------------------------------------------

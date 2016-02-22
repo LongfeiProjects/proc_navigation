@@ -80,7 +80,7 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration {
     Eigen::Matrix3d r_b_n;
     Eigen::Vector3d euler; // roll, pitch, yaw
     Eigen::Vector3d w_ib_b;
-    Eigen::Vector3d vel_b;
+    Eigen::Vector3d vesl_b;
     double baro_bias;
   };
 
