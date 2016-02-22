@@ -111,8 +111,6 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration {
   //==========================================================================
   // P U B L I C   M E T H O D S
 
-  bool IsNewDataReady() const ATLAS_NOEXCEPT;
-
  private:
   //==========================================================================
   // P R I V A T E   M E T H O D S
@@ -163,13 +161,6 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration {
   StateController<ImuMessage>::Ptr imu_;
   StateController<MagMessage>::Ptr mag_;
   StateController<DvlMessage>::Ptr dvl_;
-
-  /**
-   * As we don't want to access the data if a proccessing loop instance is
-   * occuring, we will simply block th access to the data at any time during
-   * processing loop.
-   */
-  std::mutex processing_mutex_;
 
   /**
    * This is the timer that run during the init time.

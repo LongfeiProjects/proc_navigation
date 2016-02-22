@@ -45,7 +45,6 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(
                                                    imu_(imu),
                                                    mag_(mag),
                                                    dvl_(dvl),
-                                                   processing_mutex_(),
                                                    init_timer_(),
                                                    states_(),
                                                    kalman_states_(),
@@ -197,11 +196,9 @@ Eigen::Quaterniond ExtendedKalmanFilter::CalculateInitialRotationMatrix(
 void ExtendedKalmanFilter::Run() {
   while (IsRunning()) {
     if (imu_->IsNewDataReady()) {
-      std::lock_guard<std::mutex> guard(processing_mutex_);
       double dt = timer_.Time();
-      timer_.Reset();
-
       auto imu_msg = imu_->GetLastData();
+      timer_.Reset();
 
       Eigen::Vector3d acc_raw_data;
       acc_raw_data(0) = imu_msg->linear_acceleration.x;
@@ -277,8 +274,6 @@ void ExtendedKalmanFilter::Run() {
 //
 void ExtendedKalmanFilter::Mechanization(Eigen::Vector3d f_b,
                                          double dt) ATLAS_NOEXCEPT {
-  std::lock_guard<std::mutex> guard(processing_mutex_);
-
   Eigen::Vector3d p_dot_n = states_.vel_n;
 
   Eigen::Vector3d v_dot_n = extra_states_.r_b_n * f_b + g_n_;
@@ -291,8 +286,6 @@ void ExtendedKalmanFilter::Mechanization(Eigen::Vector3d f_b,
 //------------------------------------------------------------------------------
 //
 void ExtendedKalmanFilter::ErrorsDynamicModelCalculation() ATLAS_NOEXCEPT {
-  std::lock_guard<std::mutex> guard(processing_mutex_);
-
   Eigen::Matrix3d f_pv = Eigen::Matrix3d::Identity(3, 3);
   Eigen::Matrix3d f_vr = atlas::SkewMatrix(g_n_);
   Eigen::Matrix3d f_vbf = -extra_states_.r_b_n;
@@ -393,8 +386,6 @@ void ExtendedKalmanFilter::ErrorsDynamicModelCalculation() ATLAS_NOEXCEPT {
 //
 void ExtendedKalmanFilter::KalmanStatesCovariancePropagation(double dt)
     ATLAS_NOEXCEPT {
-  std::lock_guard<std::mutex> guard(processing_mutex_);
-
   Eigen::Matrix<double, 16, 13> g_k = kalman_matrix_.g_;
   Eigen::Matrix<double, 16, 16> q, q_k;
   Eigen::Matrix<double, 16, 16> phi_k;
@@ -416,8 +407,6 @@ void ExtendedKalmanFilter::KalmanStatesCovariancePropagation(double dt)
 //------------------------------------------------------------------------------
 //
 void ExtendedKalmanFilter::UpdateGravity(Eigen::Vector3d f_b) ATLAS_NOEXCEPT {
-  std::lock_guard<std::mutex> guard(processing_mutex_);
-
   Eigen::Matrix3d skew_g_n = atlas::SkewMatrix(g_n_);
 
   Eigen::Matrix<double, 3, 16> h_gravity =
@@ -457,8 +446,6 @@ void ExtendedKalmanFilter::UpdateGravity(Eigen::Vector3d f_b) ATLAS_NOEXCEPT {
 //------------------------------------------------------------------------------
 //
 void ExtendedKalmanFilter::UpdateMag() ATLAS_NOEXCEPT {
-  std::lock_guard<std::mutex> guard(processing_mutex_);
-
   auto mag_msg = mag_->GetLastData();
 
   Eigen::Vector3d mag_raw_data;
@@ -525,8 +512,6 @@ void ExtendedKalmanFilter::UpdateMag() ATLAS_NOEXCEPT {
 //------------------------------------------------------------------------------
 //
 void ExtendedKalmanFilter::UpdateDvl() ATLAS_NOEXCEPT {
-  std::lock_guard<std::mutex> guard(processing_mutex_);
-
   auto dvl_msg = dvl_->GetLastData();
   Eigen::Vector3d dvl_raw_data;
   dvl_raw_data(0) = dvl_msg->twist.twist.linear.x;
@@ -544,8 +529,9 @@ void ExtendedKalmanFilter::UpdateDvl() ATLAS_NOEXCEPT {
   h_dvl(1, 14) = skew_l_pd(1);
   h_dvl(2, 14) = skew_l_pd(2);
 
-  Eigen::Matrix3d r_dvl = Eigen::Matrix<double, 1, 3>(sigma_meas_dvl_x, sigma_meas_dvl_y,
-                                          sigma_meas_dvl_z).asDiagonal();
+  Eigen::Matrix3d r_dvl =
+      Eigen::Matrix<double, 1, 3>(sigma_meas_dvl_x, sigma_meas_dvl_y,
+                                  sigma_meas_dvl_z).asDiagonal();
   auto k_dvl_tmp = h_dvl * kalman_matrix_.p_ * h_dvl.transpose() + r_dvl;
   auto k_dvl = kalman_matrix_.p_ * h_dvl.transpose() * k_dvl_tmp.inverse();
   Eigen::Matrix<double, 16, 16> eye16 = Eigen::Matrix<double, 16, 16>::Zero();
@@ -555,23 +541,18 @@ void ExtendedKalmanFilter::UpdateDvl() ATLAS_NOEXCEPT {
       extra_states_.r_n_b * states_.vel_n + extra_states_.w_ib_b.cross(l_pd);
 
   auto d_z_dvl = dvl_raw_data - dvl_hat;
-  auto d_x = k_dvl * d_z_dvl;
-
-  // Call update state here
+  auto d_x_dvl = k_dvl * d_z_dvl;
+  UpdateStates(d_x_dvl);
 }
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::UpdateBaro() ATLAS_NOEXCEPT {
-  std::lock_guard<std::mutex> guard(processing_mutex_);
-}
+void ExtendedKalmanFilter::UpdateBaro() ATLAS_NOEXCEPT {}
 
 //------------------------------------------------------------------------------
 //
 void ExtendedKalmanFilter::UpdateStates(const Eigen::Matrix<double, 16, 1> &dx)
     ATLAS_NOEXCEPT {
-  std::lock_guard<std::mutex> guard(processing_mutex_);
-
   Eigen::Vector3d d_pos_n;
   d_pos_n(0) = dx(0);
   d_pos_n(1) = dx(1);
@@ -613,13 +594,6 @@ void ExtendedKalmanFilter::UpdateStates(const Eigen::Matrix<double, 16, 1> &dx)
   extra_states_.r_n_b = extra_states_.r_b_n.transpose();
   states_.b = atlas::RotToQuat(extra_states_.r_n_b);
   extra_states_.euler = atlas::QuatToEuler(states_.b);
-}
-
-//------------------------------------------------------------------------------
-//
-bool ExtendedKalmanFilter::IsNewDataReady() const ATLAS_NOEXCEPT {
-  return baro_->IsNewDataReady() || imu_->IsNewDataReady() ||
-         dvl_->IsNewDataReady() || mag_->IsNewDataReady();
 }
 
 }  // namespace proc_navigation
