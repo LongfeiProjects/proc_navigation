@@ -547,7 +547,40 @@ void ExtendedKalmanFilter::UpdateDvl(const Eigen::Vector3d &dvl_raw_data)
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::UpdateBaro(const double &baro_meas) ATLAS_NOEXCEPT {}
+void ExtendedKalmanFilter::UpdateBaro(const double &baro_meas) ATLAS_NOEXCEPT {
+  static double p_surface = 100000;
+  // Is the submarine underwater ?
+  // Value in [Pa]
+  if(baro_meas > p_surface) {
+    static double rho_water = 1000; // [kh/m3]
+    // Saunder-Fofonoff Equation
+    auto depth_meas = (baro_meas - p_surface) / (rho_water * ge_);
+
+    // Aiding Measurement Model
+    auto l_tp = extra_states_.r_n_b * l_pp;
+    auto skew_l_tp = atlas::SkewMatrix(l_tp);
+    Eigen::Matrix<double, 1, 16> h_baro = Eigen::Matrix<double, 1, 16>::Zero();
+    Eigen::Matrix<double, 1, 3> tmp_mat = -Eigen::Matrix<double, 1, 3>(0, 0, 1)*skew_l_tp;
+    h_baro(0, 2) = 1;
+    h_baro(0, 6) = tmp_mat(0);
+    h_baro(0, 7) = tmp_mat(1);
+    h_baro(0, 8) = tmp_mat(2);
+    h_baro(0, 15) = 1/(rho_water*ge_);
+
+    double r_baro = sigma_meas_baro;
+    double depth_hat = states_.pos_n(2);
+    double d_z_baro = depth_meas - depth_hat;
+
+    // Apparently canno't do coefficient-wise operation on matrix with Eigen
+    // And we need to convert to array first. Lot of type casting here...
+    // see: http://eigen.tuxfamily.org/dox-devel/group__TutorialArrayClass.html
+    auto k_baro_tmp =  h_baro*kalman_matrix_.p_*h_baro.transpose();
+    auto k_baro_tmp_arr = k_baro_tmp.array() + r_baro;
+    auto k_baro = kalman_matrix_.p_*h_baro.transpose() * k_baro_tmp_arr.matrix().inverse();
+    auto d_x = k_baro * d_z_baro;
+    UpdateStates(d_x);
+  }
+}
 
 //------------------------------------------------------------------------------
 //
