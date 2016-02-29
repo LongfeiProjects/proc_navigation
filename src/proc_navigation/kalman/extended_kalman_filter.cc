@@ -76,13 +76,38 @@ void ExtendedKalmanFilter::Initialize() {
   // The vectors of interest for the initilization states.
   std::array<std::vector<double>, 3> g;
   std::array<std::vector<double>, 3> m;
+  std::array<std::vector<double>, 3> vel;
+  std::vector<double> pressure;
 
   while (init_timer_.MicroSeconds() < t_init) {
-    // Check if there is new data here and add to the vectors
+    if (imu_->IsNewDataReady()) {
+      auto imu_msg = imu_->GetLastData();
+      std::get<0>(g).push_back(imu_msg->linear_acceleration.x);
+      std::get<0>(g).push_back(imu_msg->linear_acceleration.y);
+      std::get<0>(g).push_back(imu_msg->linear_acceleration.z);
+    }
+
+    if (mag_->IsNewDataReady() && active_mag) {
+      auto mag_msg = mag_->GetLastData();
+      std::get<0>(m).push_back(mag_msg->magnetic_field.x);
+      std::get<0>(m).push_back(mag_msg->magnetic_field.y);
+      std::get<0>(m).push_back(mag_msg->magnetic_field.z);
+    }
+
+    if (dvl_->IsNewDataReady() && active_dvl) {
+      auto dvl_msg = dvl_->GetLastData();
+      std::get<0>(vel).push_back(dvl_msg->twist.twist.linear.x);
+      std::get<1>(vel).push_back(dvl_msg->twist.twist.linear.y);
+      std::get<2>(vel).push_back(dvl_msg->twist.twist.linear.z);
+    }
+
+    if (baro_->IsNewDataReady() && active_baro) {
+      pressure.push_back(baro_->GetLastData()->data);
+    }
   }
 
   states_.pos_n = Eigen::Vector3d(0, 0, 0);
-  states_.vel_n = Eigen::Vector3d(0, 0, 0);
+  states_.vel_n = Eigen::Vector3d(atlas::Mean(std::get<0>(vel)), atlas::Mean(std::get<1>(vel)), atlas::Mean(std::get<2>(vel)));
   states_.b = CalculateInitialRotationMatrix(g, m);
   states_.acc_bias = Eigen::Vector3d(0, 0, 0);
   states_.gyro_bias = Eigen::Vector3d(0, 0, 0);
@@ -519,7 +544,6 @@ void ExtendedKalmanFilter::UpdateMag(const Eigen::Vector3d &mag_raw_data)
 void ExtendedKalmanFilter::UpdateDvl(const Eigen::Vector3d &dvl_raw_data)
     ATLAS_NOEXCEPT {
   // Aiding Measurement Model
-  Eigen::Vector3d v_b = dvl_raw_data;
   auto skew_l_pd = atlas::SkewMatrix(l_pd);
   Eigen::Matrix<double, 3, 16> h_dvl = Eigen::Matrix<double, 3, 16>::Zero();
   h_dvl(0, 3) = 1;
