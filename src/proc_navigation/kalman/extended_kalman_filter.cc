@@ -41,6 +41,7 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(
     const StateController<DvlMessage>::Ptr &dvl,
     const EkfConfiguration &conf) ATLAS_NOEXCEPT : atlas::Runnable(),
                                                    EkfConfiguration(conf),
+                                                   atlas::Subject<>(),
                                                    baro_(baro),
                                                    imu_(imu),
                                                    mag_(mag),
@@ -301,6 +302,8 @@ void ExtendedKalmanFilter::Run() {
       */
       kalman_matrix_.p_ =
           (kalman_matrix_.p_ + kalman_matrix_.p_.transpose()) / 2;
+
+      Notify();
     }
   }
 }

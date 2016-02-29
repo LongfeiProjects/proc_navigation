@@ -35,7 +35,7 @@
 
 namespace proc_navigation {
 
-class ProcNavigationNode {
+class ProcNavigationNode : public atlas::Observer<> {
  public:
   //==========================================================================
   // T Y P E D E F   A N D   E N U M
@@ -61,6 +61,8 @@ class ProcNavigationNode {
   //==========================================================================
   // P R I V A T E   M E T H O D S
 
+  void OnSubjectNotify(atlas::Subject<> &subject) ATLAS_NOEXCEPT override;
+
   //==========================================================================
   // P R I V A T E   M E M B E R S
 
@@ -74,6 +76,8 @@ class ProcNavigationNode {
   StateController<ExtendedKalmanFilter::DvlMessage>::Ptr dvl_;
 
   ExtendedKalmanFilter ekf_;
+
+  ros::Publisher odom_pub_;
 };
 
 }  // namespace proc_navigation

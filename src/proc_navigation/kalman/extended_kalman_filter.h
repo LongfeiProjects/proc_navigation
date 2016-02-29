@@ -42,7 +42,7 @@
 
 namespace proc_navigation {
 
-class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration {
+class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration, public atlas::Subject<> {
  public:
   //==========================================================================
   // T Y P E D E F   A N D   E N U M
@@ -110,6 +110,8 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration {
 
   //==========================================================================
   // P U B L I C   M E T H O D S
+
+  const States &GetStates() const ATLAS_NOEXCEPT;
 
  private:
   //==========================================================================
@@ -199,6 +201,15 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration {
 
   Eigen::Vector3d g_n_;
 };
+
+//==============================================================================
+// I N L I N E   F U N C T I O N S   D E F I N I T I O N S
+
+//------------------------------------------------------------------------------
+//
+ATLAS_INLINE const ExtendedKalmanFilter::States &ExtendedKalmanFilter::GetStates() const ATLAS_NOEXCEPT {
+  return states_;
+}
 
 }  // namespace proc_navigation
 
