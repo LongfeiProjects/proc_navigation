@@ -73,12 +73,12 @@ install:
   - git clone https://github.com/sonia-auv/provider_imu.git -b $TRAVIS_BRANCH
   - git clone https://github.com/sonia-auv/provider_can.git -b $TRAVIS_BRANCH
   # Install drivers
-  wget http://www.kvaser.com/software/7330130980754/V5_13_0/linuxcan.tar.gz
-  tar zxvf linuxcan.tar.gz
-  cd ./linuxcan
-  make -j8
-  sudo make install
-  cd ../
+  - wget http://www.kvaser.com/software/7330130980754/V5_13_0/linuxcan.tar.gz
+  - tar zxvf linuxcan.tar.gz
+  - cd ./linuxcan
+  - make -j8
+  - sudo make install
+  - cd ../
   # Install dependencies
   - cd ~/catkin_ws/
   - rosdep install --from-paths src --ignore-src --rosdistro=${ROS_DISTRO} -y
