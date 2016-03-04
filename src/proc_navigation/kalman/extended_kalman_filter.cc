@@ -55,10 +55,6 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(
                                                    is_stationnary_(false),
                                                    ge_(),
                                                    g_n_() {
-  // Initialize the Kalman filter here
-  Initialize();
-
-  // The initialization is finished, start the Kalman filter here
   Start();
 }
 
@@ -72,7 +68,7 @@ ExtendedKalmanFilter::~ExtendedKalmanFilter() ATLAS_NOEXCEPT {}
 //------------------------------------------------------------------------------
 //
 void ExtendedKalmanFilter::Initialize() {
-  init_timer_.Start();
+  while(!imu_->IsNewDataReady()) {}
 
   // The vectors of interest for the initilization states.
   std::array<std::vector<double>, 3> g;
@@ -80,30 +76,32 @@ void ExtendedKalmanFilter::Initialize() {
   std::array<std::vector<double>, 3> vel;
   std::vector<double> pressure;
 
-  while (init_timer_.MicroSeconds() < t_init) {
+  init_timer_.Start();
+
+  while (init_timer_.MilliSeconds() < t_init * 1000) {
     if (imu_->IsNewDataReady()) {
       auto imu_msg = imu_->GetLastData();
-      std::get<0>(g).push_back(imu_msg->linear_acceleration.x);
-      std::get<0>(g).push_back(imu_msg->linear_acceleration.y);
-      std::get<0>(g).push_back(imu_msg->linear_acceleration.z);
+      std::get<0>(g).push_back(imu_msg.linear_acceleration.x);
+      std::get<1>(g).push_back(imu_msg.linear_acceleration.y);
+      std::get<2>(g).push_back(imu_msg.linear_acceleration.z);
     }
 
     if (mag_->IsNewDataReady() && active_mag) {
       auto mag_msg = mag_->GetLastData();
-      std::get<0>(m).push_back(mag_msg->magnetic_field.x);
-      std::get<0>(m).push_back(mag_msg->magnetic_field.y);
-      std::get<0>(m).push_back(mag_msg->magnetic_field.z);
+      std::get<0>(m).push_back(mag_msg.magnetic_field.x);
+      std::get<1>(m).push_back(mag_msg.magnetic_field.y);
+      std::get<2>(m).push_back(mag_msg.magnetic_field.z);
     }
 
     if (dvl_->IsNewDataReady() && active_dvl) {
       auto dvl_msg = dvl_->GetLastData();
-      std::get<0>(vel).push_back(dvl_msg->twist.twist.linear.x);
-      std::get<1>(vel).push_back(dvl_msg->twist.twist.linear.y);
-      std::get<2>(vel).push_back(dvl_msg->twist.twist.linear.z);
+      std::get<0>(vel).push_back(dvl_msg.twist.twist.linear.x);
+      std::get<1>(vel).push_back(dvl_msg.twist.twist.linear.y);
+      std::get<2>(vel).push_back(dvl_msg.twist.twist.linear.z);
     }
 
     if (baro_->IsNewDataReady() && active_baro) {
-      pressure.push_back(baro_->GetLastData()->data);
+      pressure.push_back(baro_->GetLastData().data);
     }
   }
 
@@ -220,6 +218,8 @@ Eigen::Quaterniond ExtendedKalmanFilter::CalculateInitialRotationMatrix(
 //------------------------------------------------------------------------------
 //
 void ExtendedKalmanFilter::Run() {
+  Initialize();
+
   while (IsRunning()) {
     if (imu_->IsNewDataReady()) {
       double dt = timer_.Time();
@@ -227,16 +227,16 @@ void ExtendedKalmanFilter::Run() {
       timer_.Reset();
 
       Eigen::Vector3d acc_raw_data;
-      acc_raw_data(0) = imu_msg->linear_acceleration.x;
-      acc_raw_data(1) = imu_msg->linear_acceleration.y;
-      acc_raw_data(2) = imu_msg->linear_acceleration.z;
+      acc_raw_data(0) = imu_msg.linear_acceleration.x;
+      acc_raw_data(1) = imu_msg.linear_acceleration.y;
+      acc_raw_data(2) = imu_msg.linear_acceleration.z;
 
       Eigen::Vector3d f_b = acc_raw_data - states_.acc_bias;
 
       Eigen::Vector3d gyr_raw_data;
-      gyr_raw_data(0) = imu_msg->angular_velocity.x;
-      gyr_raw_data(1) = imu_msg->angular_velocity.y;
-      gyr_raw_data(2) = imu_msg->angular_velocity.z;
+      gyr_raw_data(0) = imu_msg.angular_velocity.x;
+      gyr_raw_data(1) = imu_msg.angular_velocity.y;
+      gyr_raw_data(2) = imu_msg.angular_velocity.z;
 
       extra_states_.w_ib_b = gyr_raw_data - states_.gyro_bias;
       criterions_.ufw = extra_states_.w_ib_b.squaredNorm();
@@ -278,23 +278,23 @@ void ExtendedKalmanFilter::Run() {
       if (mag_->IsNewDataReady() && active_mag) {
         auto mag_msg = mag_->GetLastData();
         Eigen::Vector3d mag_raw_data;
-        mag_raw_data(0) = mag_msg->magnetic_field.x;
-        mag_raw_data(1) = mag_msg->magnetic_field.y;
-        mag_raw_data(2) = mag_msg->magnetic_field.z;
+        mag_raw_data(0) = mag_msg.magnetic_field.x;
+        mag_raw_data(1) = mag_msg.magnetic_field.y;
+        mag_raw_data(2) = mag_msg.magnetic_field.z;
         UpdateMag(mag_raw_data);
       }
 
       if (dvl_->IsNewDataReady() && active_dvl) {
         auto dvl_msg = dvl_->GetLastData();
         Eigen::Vector3d dvl_raw_data;
-        dvl_raw_data(0) = dvl_msg->twist.twist.linear.x;
-        dvl_raw_data(1) = dvl_msg->twist.twist.linear.y;
-        dvl_raw_data(2) = dvl_msg->twist.twist.linear.z;
+        dvl_raw_data(0) = dvl_msg.twist.twist.linear.x;
+        dvl_raw_data(1) = dvl_msg.twist.twist.linear.y;
+        dvl_raw_data(2) = dvl_msg.twist.twist.linear.z;
         UpdateDvl(dvl_raw_data);
       }
 
       if (baro_->IsNewDataReady() && active_baro) {
-        UpdateBaro(baro_->GetLastData()->data);
+        UpdateBaro(baro_->GetLastData().data);
       }
 
       /*
@@ -488,9 +488,9 @@ void ExtendedKalmanFilter::UpdateMag(const Eigen::Vector3d &mag_raw_data)
     ATLAS_NOEXCEPT {
   Eigen::Vector3d m_b = mag_raw_data;
 
-  double phi = extra_states_.euler(1);
-  double theta = extra_states_.euler(2);
-  double psi = extra_states_.euler(3);
+  double phi = extra_states_.euler(0);
+  double theta = extra_states_.euler(1);
+  double psi = extra_states_.euler(2);
 
   double roll = phi;
   double pitch = theta;
@@ -639,8 +639,8 @@ void ExtendedKalmanFilter::UpdateStates(const Eigen::Matrix<double, 16, 1> &dx)
 
   Eigen::Vector3d d_gyro_bias;
   d_gyro_bias(0) = dx(12);
-  d_gyro_bias(0) = dx(13);
-  d_gyro_bias(0) = dx(14);
+  d_gyro_bias(1) = dx(13);
+  d_gyro_bias(2) = dx(14);
   states_.gyro_bias = states_.gyro_bias + d_gyro_bias;
 
   double d_baro_bias;

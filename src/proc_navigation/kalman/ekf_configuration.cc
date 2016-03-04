@@ -32,7 +32,7 @@ namespace proc_navigation {
 
 //------------------------------------------------------------------------------
 //
-EkfConfiguration::EkfConfiguration(const ros::NodeHandlePtr &nh) ATLAS_NOEXCEPT
+EkfConfiguration::EkfConfiguration(const ros::NodeHandle &nh) ATLAS_NOEXCEPT
     : t_init(0.5f),
       active_gravity(true),
       active_mag(true),
@@ -74,8 +74,10 @@ EkfConfiguration::EkfConfiguration(const ros::NodeHandlePtr &nh) ATLAS_NOEXCEPT
       baro_topic("/provider_can/barometer/pressure"),
       dvl_topic("/provider_dvl/twist"),
       imu_topic("/provider_imu/imu"),
-      mag_topic("/provider_imu/mag"),
-      nh_(nh) {}
+      mag_topic("/provider_imu/magnetic_field"),
+      nh_(nh) {
+  DeserializeConfiguration();
+}
 
 //------------------------------------------------------------------------------
 //
@@ -213,7 +215,8 @@ void EkfConfiguration::DeserializeConfiguration() ATLAS_NOEXCEPT {
   FindParameter("/device_sign/mag/z", mag_sign_z);
 
   // Getting the matrix for Eigen compatible types
-  std::vector<float> l_pd_tmp, l_pp_tmp;
+  std::vector<float> l_pd_tmp({static_cast<float>(l_pd(0)), static_cast<float>(l_pd(1)), static_cast<float>(l_pd(2))});
+  std::vector<float> l_pp_tmp({static_cast<float>(l_pp(0)), static_cast<float>(l_pp(1)), static_cast<float>(l_pp(2))});
   FindParameter("/ekf/l_pd", l_pd_tmp);
   FindParameter("/ekf/l_pp", l_pp_tmp);
   if (l_pd_tmp.size() != 3 || l_pp_tmp.size() != 3) {
@@ -229,8 +232,8 @@ void EkfConfiguration::DeserializeConfiguration() ATLAS_NOEXCEPT {
 template <typename Tp_>
 void EkfConfiguration::FindParameter(const std::string &str,
                                      Tp_ &p) ATLAS_NOEXCEPT {
-  if (nh_->hasParam("/proc_navigation" + str)) {
-    nh_->getParam("/proc_navigation" + str, p);
+  if (nh_.hasParam("/proc_navigation" + str)) {
+    nh_.getParam("/proc_navigation" + str, p);
   } else {
     ROS_WARN_STREAM("Did not find /proc_navigation" + str
                     << ". Using default value instead.");

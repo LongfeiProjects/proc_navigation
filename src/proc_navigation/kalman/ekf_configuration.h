@@ -47,14 +47,14 @@ class EkfConfiguration {
   //============================================================================
   // P U B L I C   C / D T O R S
 
-  EkfConfiguration(const ros::NodeHandlePtr &nh) ATLAS_NOEXCEPT;
+  explicit EkfConfiguration(const ros::NodeHandle &nh) ATLAS_NOEXCEPT;
 
   /**
    * We want to define copy constructor here for optimization purpose.
    * Do not copy the members if is a rvalue.
    */
-  EkfConfiguration(const EkfConfiguration &rhs) ATLAS_NOEXCEPT;
-  EkfConfiguration(EkfConfiguration &&rhs) ATLAS_NOEXCEPT;
+  explicit EkfConfiguration(const EkfConfiguration &rhs) ATLAS_NOEXCEPT;
+  explicit EkfConfiguration(EkfConfiguration &&rhs) ATLAS_NOEXCEPT;
 
   virtual ~EkfConfiguration() ATLAS_NOEXCEPT;
 
@@ -121,7 +121,7 @@ class EkfConfiguration {
   //============================================================================
   // P R I V A T E   M E M B E R S
 
-  ros::NodeHandlePtr nh_;
+  ros::NodeHandle nh_;
 };
 
 }  // namespace proc_navigation

@@ -35,12 +35,11 @@ namespace proc_navigation {
 
 //-----------------------------------------------------------------------------
 //
-ProcNavigationNode::ProcNavigationNode(const ros::NodeHandlePtr &nh)
+ProcNavigationNode::ProcNavigationNode(const ros::NodeHandle &nh)
     ATLAS_NOEXCEPT
     : nh_(nh),
       ekf_conf_(nh_),
-      baro_(
-          std::make_shared<StateController<ExtendedKalmanFilter::BaroMessage>>(
+      baro_(std::make_shared<StateController<ExtendedKalmanFilter::BaroMessage>>(
               nh_, ekf_conf_.baro_topic)),
       imu_(std::make_shared<StateController<ExtendedKalmanFilter::ImuMessage>>(
           nh_, ekf_conf_.imu_topic)),
@@ -48,8 +47,10 @@ ProcNavigationNode::ProcNavigationNode(const ros::NodeHandlePtr &nh)
           nh_, ekf_conf_.mag_topic)),
       dvl_(std::make_shared<StateController<ExtendedKalmanFilter::DvlMessage>>(
           nh_, ekf_conf_.dvl_topic)),
-      ekf_(baro_, imu_, mag_, dvl_, nh_),
-      odom_pub_(nh_->advertise<nav_msgs::Odometry>("odom", 100)) {}
+      ekf_(baro_, imu_, mag_, dvl_, ekf_conf_),
+      odom_pub_(nh_.advertise<nav_msgs::Odometry>("odom", 100)) {
+  ekf_.Attach(*this);
+}
 
 //-----------------------------------------------------------------------------
 //
@@ -61,10 +62,8 @@ ProcNavigationNode::~ProcNavigationNode() ATLAS_NOEXCEPT {}
 //-----------------------------------------------------------------------------
 //
 void ProcNavigationNode::Spin() ATLAS_NOEXCEPT {
-  while (!ros::isShuttingDown()) {
-    while (nh_->ok()) {
-      ros::spinOnce();
-    }
+  while (nh_.ok()) {
+    ros::spinOnce();
   }
 }
 

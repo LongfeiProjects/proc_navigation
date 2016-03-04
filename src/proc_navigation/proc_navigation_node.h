@@ -48,7 +48,7 @@ class ProcNavigationNode : public atlas::Observer<> {
   //==========================================================================
   // P U B L I C   C / D T O R S
 
-  explicit ProcNavigationNode(const ros::NodeHandlePtr &nh) ATLAS_NOEXCEPT;
+  explicit ProcNavigationNode(const ros::NodeHandle &nh) ATLAS_NOEXCEPT;
 
   ~ProcNavigationNode() ATLAS_NOEXCEPT;
 
@@ -66,7 +66,7 @@ class ProcNavigationNode : public atlas::Observer<> {
   //==========================================================================
   // P R I V A T E   M E M B E R S
 
-  ros::NodeHandlePtr nh_;
+  ros::NodeHandle nh_;
 
   EkfConfiguration ekf_conf_;
 

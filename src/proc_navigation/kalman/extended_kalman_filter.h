@@ -52,10 +52,10 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration, p
   using PtrList = std::vector<ExtendedKalmanFilter::Ptr>;
   using ConstPtrList = std::vector<ExtendedKalmanFilter::ConstPtr>;
 
-  using BaroMessage = std_msgs::Float64::Ptr;
-  using DvlMessage = geometry_msgs::TwistWithCovarianceStamped::Ptr;
-  using ImuMessage = sensor_msgs::Imu::Ptr;
-  using MagMessage = sensor_msgs::MagneticField::Ptr;
+  using BaroMessage = std_msgs::Float64;
+  using DvlMessage = geometry_msgs::TwistWithCovarianceStamped;
+  using ImuMessage = sensor_msgs::Imu;
+  using MagMessage = sensor_msgs::MagneticField;
 
   struct States {
     Eigen::Vector3d pos_n;

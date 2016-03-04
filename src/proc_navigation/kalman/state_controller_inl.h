@@ -37,16 +37,18 @@ namespace proc_navigation {
 //------------------------------------------------------------------------------
 //
 template <class Tp_>
-ATLAS_ALWAYS_INLINE StateController<Tp_>::StateController(
-    const ros::NodeHandlePtr &, const std::string &topic_name) ATLAS_NOEXCEPT {
-  std::string topic;
-  nh_->subscribe(topic_name, 100, &StateController::Callback, this);
-}
+ATLAS_INLINE StateController<Tp_>::StateController(
+    const ros::NodeHandle &nh, const std::string &topic_name) ATLAS_NOEXCEPT :
+    nh_(nh),
+    data_mutex_(),
+    last_data_(),
+    new_data_ready_(false),
+    subscriber_(nh_.subscribe(topic_name, 100, &StateController<Tp_>::Callback, this)) {}
 
 //------------------------------------------------------------------------------
 //
 template <class Tp_>
-ATLAS_ALWAYS_INLINE StateController<Tp_>::~StateController() ATLAS_NOEXCEPT {}
+ATLAS_INLINE StateController<Tp_>::~StateController() ATLAS_NOEXCEPT {}
 
 //==============================================================================
 // M E T H O D   S E C T I O N
@@ -54,7 +56,7 @@ ATLAS_ALWAYS_INLINE StateController<Tp_>::~StateController() ATLAS_NOEXCEPT {}
 //------------------------------------------------------------------------------
 //
 template <class Tp_>
-ATLAS_ALWAYS_INLINE void StateController<Tp_>::Callback(const Tp_ &msg)
+ATLAS_INLINE void StateController<Tp_>::Callback(const DataType &msg)
     ATLAS_NOEXCEPT {
   new_data_ready_ = true;
   std::lock_guard<std::mutex> guard(data_mutex_);
@@ -64,16 +66,17 @@ ATLAS_ALWAYS_INLINE void StateController<Tp_>::Callback(const Tp_ &msg)
 //------------------------------------------------------------------------------
 //
 template <class Tp_>
-ATLAS_ALWAYS_INLINE const Tp_ &StateController<Tp_>::GetLastData()
+ATLAS_INLINE Tp_ StateController<Tp_>::GetLastData()
     ATLAS_NOEXCEPT {
   new_data_ready_ = false;
+  std::lock_guard<std::mutex> guard(data_mutex_);
   return last_data_;
 }
 
 //------------------------------------------------------------------------------
 //
 template <class Tp_>
-ATLAS_ALWAYS_INLINE bool StateController<Tp_>::IsNewDataReady() const
+ATLAS_INLINE bool StateController<Tp_>::IsNewDataReady() const
     ATLAS_NOEXCEPT {
   return new_data_ready_;
 }

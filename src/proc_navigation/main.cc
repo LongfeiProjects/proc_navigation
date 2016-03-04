@@ -27,8 +27,8 @@
 #include "proc_navigation/proc_navigation_node.h"
 
 int main(int argc, char** argv) {
-  ros::init(argc, argv, "proc_navigation_node");
-  ros::NodeHandlePtr nh(new ros::NodeHandle("~"));
+  ros::init(argc, argv, "proc_navigation");
+  ros::NodeHandle nh("~");
   proc_navigation::ProcNavigationNode ph(nh);
   ph.Spin();
   return 0;

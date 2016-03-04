@@ -60,6 +60,8 @@ class StateController {
   using PtrList = std::vector<StateController::Ptr>;
   using ConstPtrList = std::vector<StateController::ConstPtr>;
 
+  using DataType = Tp_;
+
   //============================================================================
   // P U B L I C   C / D T O R S
 
@@ -67,7 +69,7 @@ class StateController {
    * Receiving the node handle as well as the configuration name for the topic
    * (NOT the topic name itself)
    */
-  explicit StateController(const ros::NodeHandlePtr &,
+  explicit StateController(const ros::NodeHandle &,
                            const std::string &conf_name) ATLAS_NOEXCEPT;
 
   virtual ~StateController() ATLAS_NOEXCEPT;
@@ -77,15 +79,15 @@ class StateController {
 
   bool IsNewDataReady() const ATLAS_NOEXCEPT;
 
-  const Tp_ &GetLastData() ATLAS_NOEXCEPT;
+  Tp_ GetLastData() ATLAS_NOEXCEPT;
 
-  void Callback(const Tp_ &msg) ATLAS_NOEXCEPT;
+  void Callback(const DataType &msg) ATLAS_NOEXCEPT;
 
  private:
   //============================================================================
   // P R I V A T E   M E M B E R S
 
-  ros::NodeHandlePtr nh_;
+  ros::NodeHandle nh_;
 
   std::mutex data_mutex_;
   Tp_ last_data_;
