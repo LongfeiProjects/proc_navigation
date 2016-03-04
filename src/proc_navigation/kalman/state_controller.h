@@ -83,16 +83,25 @@ class StateController {
 
   void Callback(const DataType &msg) ATLAS_NOEXCEPT;
 
+  double GetDeltaTime() const ATLAS_NOEXCEPT;
+
  private:
   //============================================================================
   // P R I V A T E   M E M B E R S
 
   ros::NodeHandle nh_;
 
-  std::mutex data_mutex_;
+  mutable std::mutex data_mutex_;
   Tp_ last_data_;
 
   std::atomic<bool> new_data_ready_;
+
+  /**
+   * The timer that will be used to get the delta time between two IMU measures
+   */
+  atlas::MicroTimer timer_;
+
+  double dt_;
 
   ros::Subscriber subscriber_;
 };

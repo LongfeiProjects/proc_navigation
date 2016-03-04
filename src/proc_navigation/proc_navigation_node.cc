@@ -71,18 +71,23 @@ void ProcNavigationNode::Spin() ATLAS_NOEXCEPT {
 //
 void ProcNavigationNode::OnSubjectNotify(atlas::Subject<> &subject) ATLAS_NOEXCEPT {
   nav_msgs::Odometry odom;
-  odom.twist.twist.linear.x = ekf_.GetStates().vel_n(0);
-  odom.twist.twist.linear.y = ekf_.GetStates().vel_n(1);
-  odom.twist.twist.linear.z = ekf_.GetStates().vel_n(2);
+  odom.header.stamp = ros::Time::now();
+  odom.header.frame_id = "odom";
 
-  odom.pose.pose.orientation.x = ekf_.GetStates().b.x();
-  odom.pose.pose.orientation.y = ekf_.GetStates().b.y();
-  odom.pose.pose.orientation.z = ekf_.GetStates().b.z();
-  odom.pose.pose.orientation.w = ekf_.GetStates().b.w();
+  auto state = ekf_.GetStates();
 
-  odom.pose.pose.position.x = ekf_.GetStates().pos_n(0);
-  odom.pose.pose.position.y = ekf_.GetStates().pos_n(1);
-  odom.pose.pose.position.z = ekf_.GetStates().pos_n(2);
+  odom.twist.twist.linear.x = state.vel_n(0);
+  odom.twist.twist.linear.y = state.vel_n(1);
+  odom.twist.twist.linear.z = state.vel_n(2);
+
+  odom.pose.pose.orientation.x = state.b.x();
+  odom.pose.pose.orientation.y = state.b.y();
+  odom.pose.pose.orientation.z = state.b.z();
+  odom.pose.pose.orientation.w = state.b.w();
+
+  odom.pose.pose.position.x = state.pos_n(0);
+  odom.pose.pose.position.y = state.pos_n(1);
+  odom.pose.pose.position.z = state.pos_n(2);
 
   odom_pub_.publish(odom);
 }

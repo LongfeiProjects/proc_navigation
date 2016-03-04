@@ -113,6 +113,8 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration, p
 
   const States &GetStates() const ATLAS_NOEXCEPT;
 
+  const KalmanStates &GetKalmanStates() const ATLAS_NOEXCEPT;
+
  private:
   //==========================================================================
   // P R I V A T E   M E T H O D S
@@ -175,11 +177,6 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration, p
   atlas::MicroTimer init_timer_;
 
   /**
-   * The timer that will be used to get the delta time between two IMU measures
-   */
-  atlas::MicroTimer timer_;
-
-  /**
    * The initial state and states of the kalman filter.
    * The values of the states are set after the initialization step.
    */
@@ -209,6 +206,12 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration, p
 //
 ATLAS_INLINE const ExtendedKalmanFilter::States &ExtendedKalmanFilter::GetStates() const ATLAS_NOEXCEPT {
   return states_;
+}
+
+//------------------------------------------------------------------------------
+//
+ATLAS_INLINE const ExtendedKalmanFilter::KalmanStates &ExtendedKalmanFilter::GetKalmanStates() const ATLAS_NOEXCEPT {
+  return kalman_states_;
 }
 
 }  // namespace proc_navigation

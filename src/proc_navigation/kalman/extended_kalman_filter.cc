@@ -78,7 +78,7 @@ void ExtendedKalmanFilter::Initialize() {
 
   init_timer_.Start();
 
-  while (init_timer_.MilliSeconds() < t_init * 1000) {
+  while (init_timer_.MicroSeconds()*std::pow(10, -6) < t_init) {
     if (imu_->IsNewDataReady()) {
       auto imu_msg = imu_->GetLastData();
       std::get<0>(g).push_back(imu_msg.linear_acceleration.x);
@@ -144,6 +144,7 @@ void ExtendedKalmanFilter::Initialize() {
   kalman_matrix_.p_(13, 13) = sigma0_bias_gyr;
   kalman_matrix_.p_(14, 14) = sigma0_bias_gyr;
   kalman_matrix_.p_(15, 15) = sigma0_bias_baro;
+  Notify();
 }
 
 //------------------------------------------------------------------------------
@@ -183,8 +184,8 @@ Eigen::Quaterniond ExtendedKalmanFilter::CalculateInitialRotationMatrix(
 
   Eigen::Vector3d m_b;
   m_b(0) = mag_sign_x * atlas::Mean(std::get<0>(m));
-  m_b(1) = mag_sign_x * atlas::Mean(std::get<1>(m));
-  m_b(2) = mag_sign_x * atlas::Mean(std::get<2>(m));
+  m_b(1) = mag_sign_y * atlas::Mean(std::get<1>(m));
+  m_b(2) = mag_sign_z * atlas::Mean(std::get<2>(m));
 
   Eigen::Vector3d m_w = r_b2w * m_b;
 
@@ -222,9 +223,8 @@ void ExtendedKalmanFilter::Run() {
 
   while (IsRunning()) {
     if (imu_->IsNewDataReady()) {
-      double dt = timer_.Time();
       auto imu_msg = imu_->GetLastData();
-      timer_.Reset();
+      auto dt = imu_->GetDeltaTime();
 
       Eigen::Vector3d acc_raw_data;
       acc_raw_data(0) = imu_msg.linear_acceleration.x;
@@ -613,43 +613,37 @@ void ExtendedKalmanFilter::UpdateBaro(const double &baro_meas) ATLAS_NOEXCEPT {
 //
 void ExtendedKalmanFilter::UpdateStates(const Eigen::Matrix<double, 16, 1> &dx)
     ATLAS_NOEXCEPT {
-  Eigen::Vector3d d_pos_n;
-  d_pos_n(0) = dx(0);
-  d_pos_n(1) = dx(1);
-  d_pos_n(2) = dx(2);
-  states_.pos_n = states_.pos_n + d_pos_n;
+  kalman_states_.d_pos_n(0) = dx(0);
+  kalman_states_.d_pos_n(1) = dx(1);
+  kalman_states_.d_pos_n(2) = dx(2);
+  states_.pos_n += kalman_states_.d_pos_n;
 
-  Eigen::Vector3d d_vel_n;
-  d_vel_n(0) = dx(3);
-  d_vel_n(1) = dx(4);
-  d_vel_n(2) = dx(5);
-  states_.vel_n = states_.vel_n + d_vel_n;
+  kalman_states_.d_vel_n(0) = dx(3);
+  kalman_states_.d_vel_n(1) = dx(4);
+  kalman_states_.d_vel_n(2) = dx(5);
+  states_.vel_n = states_.vel_n + kalman_states_.d_vel_n;
   extra_states_.vel_b = extra_states_.r_n_b * states_.vel_n;
 
-  Eigen::Vector3d rho;
-  rho(0) = dx(6);
-  rho(1) = dx(7);
-  rho(2) = dx(8);
+  kalman_states_.rho(0) = dx(6);
+  kalman_states_.rho(1) = dx(7);
+  kalman_states_.rho(2) = dx(8);
 
-  Eigen::Vector3d d_acc_bias;
-  d_acc_bias(0) = dx(9);
-  d_acc_bias(1) = dx(10);
-  d_acc_bias(2) = dx(11);
-  states_.acc_bias = states_.acc_bias + d_acc_bias;
+  kalman_states_.d_acc_bias(0) = dx(9);
+  kalman_states_.d_acc_bias(1) = dx(10);
+  kalman_states_.d_acc_bias(2) = dx(11);
+  states_.acc_bias += kalman_states_.d_acc_bias;
 
-  Eigen::Vector3d d_gyro_bias;
-  d_gyro_bias(0) = dx(12);
-  d_gyro_bias(1) = dx(13);
-  d_gyro_bias(2) = dx(14);
-  states_.gyro_bias = states_.gyro_bias + d_gyro_bias;
+  kalman_states_.d_gyro_bias(0) = dx(12);
+  kalman_states_.d_gyro_bias(1) = dx(13);
+  kalman_states_.d_gyro_bias(2) = dx(14);
+  states_.gyro_bias += kalman_states_.d_gyro_bias;
 
-  double d_baro_bias;
-  d_baro_bias = dx(15);
-  states_.baro_bias = states_.baro_bias + d_baro_bias;
+  kalman_states_.d_baro_bias = dx(15);
+  states_.baro_bias += kalman_states_.d_baro_bias;
 
   Eigen::Matrix3d r_n_b_tmp = atlas::QuatToRot(states_.b);
   Eigen::Matrix3d r_b_n_tmp = r_n_b_tmp.transpose();
-  Eigen::Matrix3d p_rho = atlas::SkewMatrix(rho);
+  Eigen::Matrix3d p_rho = atlas::SkewMatrix(kalman_states_.rho);
   extra_states_.r_b_n = (Eigen::Matrix3d::Identity(3, 3) + p_rho) * r_b_n_tmp;
   extra_states_.r_n_b = extra_states_.r_b_n.transpose();
   states_.b = atlas::RotToQuat(extra_states_.r_n_b);

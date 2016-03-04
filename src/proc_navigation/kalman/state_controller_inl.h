@@ -43,7 +43,11 @@ ATLAS_INLINE StateController<Tp_>::StateController(
     data_mutex_(),
     last_data_(),
     new_data_ready_(false),
-    subscriber_(nh_.subscribe(topic_name, 100, &StateController<Tp_>::Callback, this)) {}
+    timer_(),
+    dt_(),
+    subscriber_(nh_.subscribe(topic_name, 100, &StateController<Tp_>::Callback, this)) {
+  timer_.Start();
+}
 
 //------------------------------------------------------------------------------
 //
@@ -60,6 +64,8 @@ ATLAS_INLINE void StateController<Tp_>::Callback(const DataType &msg)
     ATLAS_NOEXCEPT {
   new_data_ready_ = true;
   std::lock_guard<std::mutex> guard(data_mutex_);
+  dt_ = timer_.MicroSeconds()*std::pow(10, -6);
+  timer_.Reset();
   last_data_ = msg;
 }
 
@@ -79,6 +85,15 @@ template <class Tp_>
 ATLAS_INLINE bool StateController<Tp_>::IsNewDataReady() const
     ATLAS_NOEXCEPT {
   return new_data_ready_;
+}
+
+//------------------------------------------------------------------------------
+//
+template <class Tp_>
+ATLAS_INLINE double StateController<Tp_>::GetDeltaTime() const
+ATLAS_NOEXCEPT {
+  std::lock_guard<std::mutex> guard(data_mutex_);
+  return dt_;
 }
 
 }  // namespace proc_navigation
