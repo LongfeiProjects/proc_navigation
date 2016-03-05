@@ -113,6 +113,8 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration, p
 
   const States &GetStates() const ATLAS_NOEXCEPT;
 
+  const ExtraStates &GetExtraStates() const ATLAS_NOEXCEPT;
+
   const KalmanStates &GetKalmanStates() const ATLAS_NOEXCEPT;
 
  private:
@@ -212,6 +214,12 @@ ATLAS_INLINE const ExtendedKalmanFilter::States &ExtendedKalmanFilter::GetStates
 //
 ATLAS_INLINE const ExtendedKalmanFilter::KalmanStates &ExtendedKalmanFilter::GetKalmanStates() const ATLAS_NOEXCEPT {
   return kalman_states_;
+}
+
+//------------------------------------------------------------------------------
+//
+ATLAS_INLINE const ExtendedKalmanFilter::ExtraStates &ExtendedKalmanFilter::GetExtraStates() const ATLAS_NOEXCEPT {
+  return extra_states_;
 }
 
 }  // namespace proc_navigation

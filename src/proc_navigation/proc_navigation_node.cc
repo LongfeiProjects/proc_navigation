@@ -75,15 +75,21 @@ void ProcNavigationNode::OnSubjectNotify(atlas::Subject<> &subject) ATLAS_NOEXCE
   odom.header.frame_id = "odom";
 
   auto state = ekf_.GetStates();
+  auto extra = ekf_.GetExtraStates();
 
   odom.twist.twist.linear.x = state.vel_n(0);
   odom.twist.twist.linear.y = state.vel_n(1);
   odom.twist.twist.linear.z = state.vel_n(2);
 
-  odom.pose.pose.orientation.x = state.b.x();
-  odom.pose.pose.orientation.y = state.b.y();
-  odom.pose.pose.orientation.z = state.b.z();
-  odom.pose.pose.orientation.w = state.b.w();
+//  odom.pose.pose.orientation.x = state.b.x();
+//  odom.pose.pose.orientation.y = state.b.y();
+//  odom.pose.pose.orientation.z = state.b.z();
+//  odom.pose.pose.orientation.w = state.b.w();
+
+  // Completetely wrong but for tests
+  odom.pose.pose.orientation.x = extra.euler(0);
+  odom.pose.pose.orientation.y = extra.euler(1);
+  odom.pose.pose.orientation.z = extra.euler(2);
 
   odom.pose.pose.position.x = state.pos_n(0);
   odom.pose.pose.position.y = state.pos_n(1);
