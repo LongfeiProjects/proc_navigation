@@ -68,8 +68,7 @@ ExtendedKalmanFilter::~ExtendedKalmanFilter() ATLAS_NOEXCEPT {}
 //------------------------------------------------------------------------------
 //
 void ExtendedKalmanFilter::Initialize() {
-  while (!imu_->IsNewDataReady()) {
-  }
+  while (!imu_->IsNewDataReady());
 
   // The vectors of interest for the initilization states.
   std::array<std::vector<double>, 3> g;
@@ -230,16 +229,16 @@ void ExtendedKalmanFilter::Run() {
       auto dt = imu_->GetDeltaTime();
 
       Eigen::Vector3d acc_raw_data;
-      acc_raw_data(0) = imu_msg.linear_acceleration.x;
-      acc_raw_data(1) = imu_msg.linear_acceleration.y;
-      acc_raw_data(2) = imu_msg.linear_acceleration.z;
+      acc_raw_data(0) = imu_sign_x * imu_msg.linear_acceleration.x;
+      acc_raw_data(1) = imu_sign_y * imu_msg.linear_acceleration.y;
+      acc_raw_data(2) = imu_sign_z * imu_msg.linear_acceleration.z;
 
       Eigen::Vector3d f_b = acc_raw_data - states_.acc_bias;
 
       Eigen::Vector3d gyr_raw_data;
-      gyr_raw_data(0) = imu_msg.angular_velocity.x;
-      gyr_raw_data(1) = imu_msg.angular_velocity.y;
-      gyr_raw_data(2) = imu_msg.angular_velocity.z;
+      gyr_raw_data(0) = imu_sign_x * imu_msg.angular_velocity.x;
+      gyr_raw_data(1) = imu_sign_y * imu_msg.angular_velocity.y;
+      gyr_raw_data(2) = imu_sign_z * imu_msg.angular_velocity.z;
 
       extra_states_.w_ib_b = gyr_raw_data - states_.gyro_bias;
       criterions_.ufw = extra_states_.w_ib_b.squaredNorm();
@@ -451,7 +450,7 @@ void ExtendedKalmanFilter::UpdateGravity(const Eigen::Vector3d &f_b)
   Eigen::Matrix3d skew_g_n = atlas::SkewMatrix(g_n_);
 
   Eigen::Matrix<double, 3, 16> h_gravity =
-      Eigen::Matrix<double, 3, 16>::Zero(1, 16);
+      Eigen::Matrix<double, 3, 16>::Zero();
   h_gravity(0, 6) = -skew_g_n(0, 0);
   h_gravity(0, 7) = -skew_g_n(0, 1);
   h_gravity(0, 8) = -skew_g_n(0, 2);
@@ -608,7 +607,8 @@ void ExtendedKalmanFilter::UpdateBaro(const double &baro_meas) ATLAS_NOEXCEPT {
     auto k_baro_tmp_arr = k_baro_tmp.array() + r_baro;
     auto k_baro = kalman_matrix_.p_ * h_baro.transpose() *
                   k_baro_tmp_arr.matrix().inverse();
-    auto d_x = k_baro * d_z_baro;
+    auto d_x = k_baro
+        * d_z_baro;
     UpdateStates(d_x);
   }
 }
