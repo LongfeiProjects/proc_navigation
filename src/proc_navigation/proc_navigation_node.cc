@@ -35,11 +35,11 @@ namespace proc_navigation {
 
 //-----------------------------------------------------------------------------
 //
-ProcNavigationNode::ProcNavigationNode(const ros::NodeHandle &nh)
-    ATLAS_NOEXCEPT
+ProcNavigationNode::ProcNavigationNode(const ros::NodeHandle &nh) ATLAS_NOEXCEPT
     : nh_(nh),
       ekf_conf_(nh_),
-      baro_(std::make_shared<StateController<ExtendedKalmanFilter::BaroMessage>>(
+      baro_(
+          std::make_shared<StateController<ExtendedKalmanFilter::BaroMessage>>(
               nh_, ekf_conf_.baro_topic)),
       imu_(std::make_shared<StateController<ExtendedKalmanFilter::ImuMessage>>(
           nh_, ekf_conf_.imu_topic)),
@@ -69,7 +69,8 @@ void ProcNavigationNode::Spin() ATLAS_NOEXCEPT {
 
 //-----------------------------------------------------------------------------
 //
-void ProcNavigationNode::OnSubjectNotify(atlas::Subject<> &subject) ATLAS_NOEXCEPT {
+void ProcNavigationNode::OnSubjectNotify(atlas::Subject<> &subject)
+    ATLAS_NOEXCEPT {
   nav_msgs::Odometry odom;
   odom.header.stamp = ros::Time::now();
   odom.header.frame_id = "odom";
@@ -81,15 +82,10 @@ void ProcNavigationNode::OnSubjectNotify(atlas::Subject<> &subject) ATLAS_NOEXCE
   odom.twist.twist.linear.y = state.vel_n(1);
   odom.twist.twist.linear.z = state.vel_n(2);
 
-//  odom.pose.pose.orientation.x = state.b.x();
-//  odom.pose.pose.orientation.y = state.b.y();
-//  odom.pose.pose.orientation.z = state.b.z();
-//  odom.pose.pose.orientation.w = state.b.w();
-
-  // Completetely wrong but for tests
-  odom.pose.pose.orientation.x = extra.euler(0);
-  odom.pose.pose.orientation.y = extra.euler(1);
-  odom.pose.pose.orientation.z = extra.euler(2);
+  odom.pose.pose.orientation.x = state.b.x();
+  odom.pose.pose.orientation.y = state.b.y();
+  odom.pose.pose.orientation.z = state.b.z();
+  odom.pose.pose.orientation.w = state.b.w();
 
   odom.pose.pose.position.x = state.pos_n(0);
   odom.pose.pose.position.y = state.pos_n(1);

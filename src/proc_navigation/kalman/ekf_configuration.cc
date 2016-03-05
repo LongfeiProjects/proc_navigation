@@ -215,8 +215,12 @@ void EkfConfiguration::DeserializeConfiguration() ATLAS_NOEXCEPT {
   FindParameter("/device_sign/mag/z", mag_sign_z);
 
   // Getting the matrix for Eigen compatible types
-  std::vector<float> l_pd_tmp({static_cast<float>(l_pd(0)), static_cast<float>(l_pd(1)), static_cast<float>(l_pd(2))});
-  std::vector<float> l_pp_tmp({static_cast<float>(l_pp(0)), static_cast<float>(l_pp(1)), static_cast<float>(l_pp(2))});
+  std::vector<float> l_pd_tmp({static_cast<float>(l_pd(0)),
+                               static_cast<float>(l_pd(1)),
+                               static_cast<float>(l_pd(2))});
+  std::vector<float> l_pp_tmp({static_cast<float>(l_pp(0)),
+                               static_cast<float>(l_pp(1)),
+                               static_cast<float>(l_pp(2))});
   FindParameter("/ekf/l_pd", l_pd_tmp);
   FindParameter("/ekf/l_pp", l_pp_tmp);
   if (l_pd_tmp.size() != 3 || l_pp_tmp.size() != 3) {

@@ -68,7 +68,8 @@ ExtendedKalmanFilter::~ExtendedKalmanFilter() ATLAS_NOEXCEPT {}
 //------------------------------------------------------------------------------
 //
 void ExtendedKalmanFilter::Initialize() {
-  while(!imu_->IsNewDataReady()) {}
+  while (!imu_->IsNewDataReady()) {
+  }
 
   // The vectors of interest for the initilization states.
   std::array<std::vector<double>, 3> g;
@@ -78,7 +79,7 @@ void ExtendedKalmanFilter::Initialize() {
 
   init_timer_.Start();
 
-  while (init_timer_.MicroSeconds()*std::pow(10, -6) < t_init) {
+  while (init_timer_.MicroSeconds() * std::pow(10, -6) < t_init) {
     if (imu_->IsNewDataReady()) {
       auto imu_msg = imu_->GetLastData();
       std::get<0>(g).push_back(imu_msg.linear_acceleration.x);
@@ -106,7 +107,9 @@ void ExtendedKalmanFilter::Initialize() {
   }
 
   states_.pos_n = Eigen::Vector3d(0, 0, 0);
-  states_.vel_n = Eigen::Vector3d(atlas::Mean(std::get<0>(vel)), atlas::Mean(std::get<1>(vel)), atlas::Mean(std::get<2>(vel)));
+  states_.vel_n = Eigen::Vector3d(atlas::Mean(std::get<0>(vel)),
+                                  atlas::Mean(std::get<1>(vel)),
+                                  atlas::Mean(std::get<2>(vel)));
   states_.b = CalculateInitialRotationMatrix(g, m);
   states_.acc_bias = Eigen::Vector3d(0, 0, 0);
   states_.gyro_bias = Eigen::Vector3d(0, 0, 0);
@@ -270,7 +273,6 @@ void ExtendedKalmanFilter::Run() {
       /*
        * UPDATE
        */
-
       if (is_stationnary_ && active_gravity) {
         UpdateGravity(f_b);
       }
@@ -578,8 +580,8 @@ void ExtendedKalmanFilter::UpdateBaro(const double &baro_meas) ATLAS_NOEXCEPT {
   static double p_surface = 100000;
   // Is the submarine underwater ?
   // Value in [Pa]
-  if(baro_meas > p_surface) {
-    static double rho_water = 1000; // [kh/m3]
+  if (baro_meas > p_surface) {
+    static double rho_water = 1000;  // [kh/m3]
     // Saunder-Fofonoff Equation
     auto depth_meas = (baro_meas - p_surface) / (rho_water * ge_);
 
@@ -587,12 +589,13 @@ void ExtendedKalmanFilter::UpdateBaro(const double &baro_meas) ATLAS_NOEXCEPT {
     auto l_tp = extra_states_.r_n_b * l_pp;
     auto skew_l_tp = atlas::SkewMatrix(l_tp);
     Eigen::Matrix<double, 1, 16> h_baro = Eigen::Matrix<double, 1, 16>::Zero();
-    Eigen::Matrix<double, 1, 3> tmp_mat = -Eigen::Matrix<double, 1, 3>(0, 0, 1)*skew_l_tp;
+    Eigen::Matrix<double, 1, 3> tmp_mat =
+        -Eigen::Matrix<double, 1, 3>(0, 0, 1) * skew_l_tp;
     h_baro(0, 2) = 1;
     h_baro(0, 6) = tmp_mat(0);
     h_baro(0, 7) = tmp_mat(1);
     h_baro(0, 8) = tmp_mat(2);
-    h_baro(0, 15) = 1/(rho_water*ge_);
+    h_baro(0, 15) = 1 / (rho_water * ge_);
 
     double r_baro = sigma_meas_baro;
     double depth_hat = states_.pos_n(2);
@@ -601,9 +604,10 @@ void ExtendedKalmanFilter::UpdateBaro(const double &baro_meas) ATLAS_NOEXCEPT {
     // Apparently canno't do coefficient-wise operation on matrix with Eigen
     // And we need to convert to array first. Lot of type casting here...
     // see: http://eigen.tuxfamily.org/dox-devel/group__TutorialArrayClass.html
-    auto k_baro_tmp =  h_baro*kalman_matrix_.p_*h_baro.transpose();
+    auto k_baro_tmp = h_baro * kalman_matrix_.p_ * h_baro.transpose();
     auto k_baro_tmp_arr = k_baro_tmp.array() + r_baro;
-    auto k_baro = kalman_matrix_.p_*h_baro.transpose() * k_baro_tmp_arr.matrix().inverse();
+    auto k_baro = kalman_matrix_.p_ * h_baro.transpose() *
+                  k_baro_tmp_arr.matrix().inverse();
     auto d_x = k_baro * d_z_baro;
     UpdateStates(d_x);
   }

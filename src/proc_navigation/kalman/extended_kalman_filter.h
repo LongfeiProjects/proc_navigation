@@ -42,7 +42,9 @@
 
 namespace proc_navigation {
 
-class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration, public atlas::Subject<> {
+class ExtendedKalmanFilter : public atlas::Runnable,
+                             private EkfConfiguration,
+                             public atlas::Subject<> {
  public:
   //==========================================================================
   // T Y P E D E F   A N D   E N U M
@@ -206,19 +208,22 @@ class ExtendedKalmanFilter : public atlas::Runnable, private EkfConfiguration, p
 
 //------------------------------------------------------------------------------
 //
-ATLAS_INLINE const ExtendedKalmanFilter::States &ExtendedKalmanFilter::GetStates() const ATLAS_NOEXCEPT {
+ATLAS_INLINE const ExtendedKalmanFilter::States &
+ExtendedKalmanFilter::GetStates() const ATLAS_NOEXCEPT {
   return states_;
 }
 
 //------------------------------------------------------------------------------
 //
-ATLAS_INLINE const ExtendedKalmanFilter::KalmanStates &ExtendedKalmanFilter::GetKalmanStates() const ATLAS_NOEXCEPT {
+ATLAS_INLINE const ExtendedKalmanFilter::KalmanStates &
+ExtendedKalmanFilter::GetKalmanStates() const ATLAS_NOEXCEPT {
   return kalman_states_;
 }
 
 //------------------------------------------------------------------------------
 //
-ATLAS_INLINE const ExtendedKalmanFilter::ExtraStates &ExtendedKalmanFilter::GetExtraStates() const ATLAS_NOEXCEPT {
+ATLAS_INLINE const ExtendedKalmanFilter::ExtraStates &
+ExtendedKalmanFilter::GetExtraStates() const ATLAS_NOEXCEPT {
   return extra_states_;
 }
 
