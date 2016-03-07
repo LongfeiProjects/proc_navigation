@@ -1,6 +1,7 @@
 /**
  * \file	extended_kalman_filter.h
  * \author	Thibaut Mattio <thibaut.mattio@gmail.com>
+ * \author  Adrien Kerroux <adrienkerroux@gmail.com>
  * \date	07/02/2016
  *
  * \copyright Copyright (c) 2015 S.O.N.I.A. All rights reserved.

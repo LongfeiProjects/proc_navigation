@@ -1,5 +1,7 @@
 /**
  * \file	main.cc
+ * \author	Thibaut Mattio <thibaut.mattio@gmail.com>
+ * \author  Adrien Kerroux <adrienkerroux@gmail.com>
  * \author	Etienne Boudreault-Pilon <etienne.b.pilon@gmail.com>
  * \date	24/01/2016
  *
