@@ -81,6 +81,7 @@ class ExtendedKalmanFilter : public atlas::Runnable,
   struct ExtraStates {
     Eigen::Matrix3d r_n_b;
     Eigen::Matrix3d r_b_n;
+    Eigen::Matrix3d r_b_dvl;
     Eigen::Vector3d euler;  // roll, pitch, yaw
     Eigen::Vector3d w_ib_b;
     Eigen::Vector3d vel_b;
@@ -179,6 +180,16 @@ class ExtendedKalmanFilter : public atlas::Runnable,
   StateController<ImuMessage>::Ptr imu_;
   StateController<MagMessage>::Ptr mag_;
   StateController<DvlMessage>::Ptr dvl_;
+
+  /**
+   * These are the timers for the processing times.
+   * Not to be confunded with the dt between two data that is provided
+   * by the StateController.
+   */
+  atlas::MicroTimer baro_timer_;
+  atlas::MicroTimer imu_timer_;
+  atlas::MicroTimer mag_timer_;
+  atlas::MicroTimer dvl_timer_;
 
   /**
    * This is the timer that run during the init time.

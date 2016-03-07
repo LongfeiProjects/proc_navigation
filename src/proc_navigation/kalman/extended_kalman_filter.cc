@@ -47,6 +47,10 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(
                                                    imu_(imu),
                                                    mag_(mag),
                                                    dvl_(dvl),
+                                                   baro_timer_(),
+                                                   imu_timer_(),
+                                                   mag_timer_(),
+                                                   dvl_timer_(),
                                                    init_timer_(),
                                                    states_(),
                                                    kalman_states_(),
@@ -124,34 +128,35 @@ void ExtendedKalmanFilter::Initialize() {
   } else {
     // negative depth (outOfWater)
     auto h_s = 0;
-    auto P_s = surface_pressure / 100;  // Pressure in mbar
-    auto T_s = air_temperature;         // Temperature in Kelvin
-    auto P_B = baro_mean / 100;         // Pressure in mbar
+    auto p_s = surface_pressure / 100;  // Pressure in mbar
+    auto t_s = air_temperature;         // Temperature in Kelvin
+    auto p_b = baro_mean / 100;         // Pressure in mbar
 
-    auto k_T = 0.0065;  // K/m
+    auto k_t = 0.0065;  // K/m
     auto g0 = 9.8065;   // m/s^2
     auto R = 287.1;     // J/kg/K
 
-    depth0 = -T_s / k_T * (std::pow(P_B / P_s, -R * k_T / g0) - 1) + h_s;
+    depth0 = -t_s / k_t * (std::pow(p_b / p_s, -R * k_t / g0) - 1) + h_s;
   }
 
   if (depth0 > 0) {
-    Eigen::Matrix3d r_b2dvl;
-    r_b2dvl(0, 0) = std::cos(heading_shift_dvl);
-    r_b2dvl(0, 1) = -std::sin(heading_shift_dvl);
-    r_b2dvl(0, 2) = 0;
-    r_b2dvl(1, 0) = std::sin(heading_shift_dvl);
-    r_b2dvl(1, 1) = std::cos(heading_shift_dvl);
-    r_b2dvl(1, 2) = 0;
-    r_b2dvl(2, 0) = 0;
-    r_b2dvl(2, 1) = 0;
-    r_b2dvl(2, 2) = 1;
+    ;
+    extra_states_.r_b_dvl(0, 0) = std::cos(heading_shift_dvl);
+    extra_states_.r_b_dvl(0, 1) = -std::sin(heading_shift_dvl);
+    extra_states_.r_b_dvl(0, 2) = 0;
+    extra_states_.r_b_dvl(1, 0) = std::sin(heading_shift_dvl);
+    extra_states_.r_b_dvl(1, 1) = std::cos(heading_shift_dvl);
+    extra_states_.r_b_dvl(1, 2) = 0;
+    extra_states_.r_b_dvl(2, 0) = 0;
+    extra_states_.r_b_dvl(2, 1) = 0;
+    extra_states_.r_b_dvl(2, 2) = 1;
 
     auto vel_dvl = Eigen::Vector3d(atlas::Mean(std::get<0>(vel)),
                                    atlas::Mean(std::get<1>(vel)),
                                    atlas::Mean(std::get<2>(vel)));
 
-    states_.vel_n = extra_states_.r_b_n * r_b2dvl.transpose() * vel_dvl;
+    states_.vel_n =
+        extra_states_.r_b_n * extra_states_.r_b_dvl.transpose() * vel_dvl;
   } else {
     states_.vel_n = Eigen::Vector3d(0, 0, 0);
   }
@@ -282,6 +287,8 @@ void ExtendedKalmanFilter::Run() {
     if (imu_->IsNewDataReady()) {
       auto imu_msg = imu_->GetLastData();
       auto dt = imu_->GetDeltaTime();
+      imu_timer_.Reset();
+      imu_timer_.Start();
 
       Eigen::Vector3d acc_raw_data;
       acc_raw_data(0) = imu_sign_x * imu_msg.linear_acceleration.x;
@@ -303,9 +310,7 @@ void ExtendedKalmanFilter::Run() {
       extra_states_.r_b_n = extra_states_.r_n_b.transpose();
       extra_states_.euler = atlas::QuatToEuler(states_.b);
 
-      /*
-       * PROPAGATION
-       */
+      // Propagation step
 
       Mechanization(f_b, dt);
 
@@ -324,38 +329,46 @@ void ExtendedKalmanFilter::Run() {
         is_stationnary_ = false;
       }
 
-      /*
-       * UPDATE
-       */
+      imu_timer_.Pause();
+
+      // Update step
+
       if (is_stationnary_ && active_gravity) {
         UpdateGravity(f_b);
       }
 
       if (mag_->IsNewDataReady() && active_mag) {
         auto mag_msg = mag_->GetLastData();
+        mag_timer_.Reset();
+        mag_timer_.Start();
         Eigen::Vector3d mag_raw_data;
         mag_raw_data(0) = mag_msg.magnetic_field.x;
         mag_raw_data(1) = mag_msg.magnetic_field.y;
         mag_raw_data(2) = mag_msg.magnetic_field.z;
         UpdateMag(mag_raw_data);
+        mag_timer_.Pause();
       }
 
       if (dvl_->IsNewDataReady() && active_dvl) {
         auto dvl_msg = dvl_->GetLastData();
+        dvl_timer_.Reset();
+        dvl_timer_.Start();
         Eigen::Vector3d dvl_raw_data;
         dvl_raw_data(0) = dvl_msg.twist.twist.linear.x;
         dvl_raw_data(1) = dvl_msg.twist.twist.linear.y;
         dvl_raw_data(2) = dvl_msg.twist.twist.linear.z;
         UpdateDvl(dvl_raw_data);
+        dvl_timer_.Pause();
       }
 
       if (baro_->IsNewDataReady() && active_baro) {
+        baro_timer_.Reset();
+        baro_timer_.Start();
         UpdateBaro(baro_->GetLastData().data);
+        baro_timer_.Pause();
       }
 
-      /*
-      * COVARIANCE MATRIX SYMMETRIZATION
-      */
+      // Covariance Matrix Simetrization
       kalman_matrix_.p_ =
           (kalman_matrix_.p_ + kalman_matrix_.p_.transpose()) / 2;
 
@@ -380,8 +393,8 @@ void ExtendedKalmanFilter::Mechanization(const Eigen::Vector3d &f_b,
 //------------------------------------------------------------------------------
 //
 void ExtendedKalmanFilter::ErrorsDynamicModelCalculation() ATLAS_NOEXCEPT {
-  Eigen::Matrix3d f_pv = Eigen::Matrix3d::Identity(3, 3);
-  Eigen::Matrix3d f_vr = atlas::SkewMatrix(g_n_);
+  static Eigen::Matrix3d f_pv = Eigen::Matrix3d::Identity(3, 3);
+  static Eigen::Matrix3d f_vr = atlas::SkewMatrix(g_n_);
   Eigen::Matrix3d f_vbf = -extra_states_.r_b_n;
   Eigen::Matrix3d f_rbg = -extra_states_.r_b_n;
 
@@ -430,7 +443,7 @@ void ExtendedKalmanFilter::ErrorsDynamicModelCalculation() ATLAS_NOEXCEPT {
   Eigen::Matrix3d g_gyr = -extra_states_.r_b_n;
   Eigen::Matrix3d g_ba = Eigen::Matrix3d::Identity(3, 3);
   Eigen::Matrix3d g_bg = Eigen::Matrix3d::Identity(3, 3);
-  double g_bb = 1;
+  static double g_bb = 1;
 
   kalman_matrix_.g_ = Eigen::Matrix<double, 16, 13>::Zero(16, 13);
   kalman_matrix_.g_(3, 0) = g_acc(0, 0);
@@ -480,18 +493,15 @@ void ExtendedKalmanFilter::ErrorsDynamicModelCalculation() ATLAS_NOEXCEPT {
 //
 void ExtendedKalmanFilter::KalmanStatesCovariancePropagation(const double &dt)
     ATLAS_NOEXCEPT {
-  Eigen::Matrix<double, 16, 13> g_k = kalman_matrix_.g_;
-  Eigen::Matrix<double, 16, 16> q, q_k;
-  Eigen::Matrix<double, 16, 16> phi_k;
+  Eigen::Matrix<double, 16, 16> q =
+      kalman_matrix_.g_ * kalman_matrix_.qc_ * kalman_matrix_.g_.transpose();
 
-  q = g_k * kalman_matrix_.qc_ * g_k.transpose();
-
-  q_k = q * dt;
+  Eigen::Matrix<double, 16, 16> q_k = q * dt;
   q_k(0, 0) = q_k(0, 0) + criterions_.ufw * dt;
   q_k(1, 1) = q_k(1, 1) + criterions_.ufw * dt;
   q_k(2, 2) = q_k(2, 2) + criterions_.ufw * dt;
 
-  phi_k =
+  Eigen::Matrix<double, 16, 16> phi_k =
       Eigen::Matrix<double, 16, 16>::Identity(16, 16) + kalman_matrix_.f_ * dt;
 
   kalman_matrix_.p_ =
@@ -543,13 +553,9 @@ void ExtendedKalmanFilter::UpdateMag(const Eigen::Vector3d &mag_raw_data)
     ATLAS_NOEXCEPT {
   Eigen::Vector3d m_b = mag_raw_data;
 
-  double phi = extra_states_.euler(0);
-  double theta = extra_states_.euler(1);
-  double psi = extra_states_.euler(2);
-
-  double roll = phi;
-  double pitch = theta;
-  double yaw_hat = psi;
+  double roll = extra_states_.euler(0);
+  double pitch = extra_states_.euler(1);
+  double yaw_hat = extra_states_.euler(2);
 
   Eigen::Matrix3d r_b2w = Eigen::Matrix3d::Zero(3, 3);
   r_b2w(0, 0) = std::cos(pitch);
@@ -565,11 +571,11 @@ void ExtendedKalmanFilter::UpdateMag(const Eigen::Vector3d &mag_raw_data)
   double yaw_meas = std::atan2(-m_w(2), m_w(1));
 
   Eigen::Matrix3d omega_t = Eigen::Matrix3d::Zero(3, 3);
-  omega_t(0, 0) = std::cos(psi) * std::cos(theta);
-  omega_t(0, 1) = -std::sin(psi);
-  omega_t(1, 0) = std::sin(psi) * std::cos(theta);
-  omega_t(1, 1) = std::cos(psi);
-  omega_t(2, 0) = -std::sin(theta);
+  omega_t(0, 0) = std::cos(yaw_hat) * std::cos(pitch);
+  omega_t(0, 1) = -std::sin(yaw_hat);
+  omega_t(1, 0) = std::sin(yaw_hat) * std::cos(pitch);
+  omega_t(1, 1) = std::cos(yaw_hat);
+  omega_t(2, 0) = -std::sin(pitch);
   omega_t(2, 2) = 1;
 
   Eigen::Matrix3d inv_omega_t = omega_t.inverse();
@@ -588,7 +594,7 @@ void ExtendedKalmanFilter::UpdateMag(const Eigen::Vector3d &mag_raw_data)
 
   double d_z_mag = yaw_meas - yaw_hat;
 
-  if (d_z_mag < M_PI) {
+  if (std::abs(d_z_mag) < M_PI) {
     Eigen::Matrix<double, 16, 1> dx_mag = k_mag * d_z_mag;
     UpdateStates(dx_mag);
     kalman_matrix_.p_ =
@@ -601,69 +607,91 @@ void ExtendedKalmanFilter::UpdateMag(const Eigen::Vector3d &mag_raw_data)
 //
 void ExtendedKalmanFilter::UpdateDvl(const Eigen::Vector3d &dvl_raw_data)
     ATLAS_NOEXCEPT {
-  // Aiding Measurement Model
-  auto skew_l_pd = atlas::SkewMatrix(l_pd);
-  Eigen::Matrix<double, 3, 16> h_dvl = Eigen::Matrix<double, 3, 16>::Zero();
-  h_dvl(0, 3) = 1;
-  h_dvl(1, 4) = 1;
-  h_dvl(2, 5) = 1;
-  h_dvl(0, 14) = skew_l_pd(0);
-  h_dvl(1, 14) = skew_l_pd(1);
-  h_dvl(2, 14) = skew_l_pd(2);
+  // Avoid corrections from NaN replaced by zeros
+  if (dvl_raw_data.norm() > 0) {
+    Eigen::Vector3d dvl_data = extra_states_.r_b_dvl.transpose() * dvl_raw_data;
+    // Aiding Measurement Model
+    auto skew_l_pd = atlas::SkewMatrix(l_pd);
+    Eigen::Matrix<double, 3, 16> h_dvl = Eigen::Matrix<double, 3, 16>::Zero();
+    h_dvl(0, 3) = extra_states_.r_n_b(0, 0);
+    h_dvl(0, 4) = extra_states_.r_n_b(0, 1);
+    h_dvl(0, 5) = extra_states_.r_n_b(0, 2);
+    h_dvl(1, 3) = extra_states_.r_n_b(1, 0);
+    h_dvl(1, 4) = extra_states_.r_n_b(1, 1);
+    h_dvl(1, 5) = extra_states_.r_n_b(1, 2);
+    h_dvl(2, 3) = extra_states_.r_n_b(2, 0);
+    h_dvl(2, 4) = extra_states_.r_n_b(2, 1);
+    h_dvl(2, 5) = extra_states_.r_n_b(2, 2);
+    h_dvl(0, 14) = skew_l_pd(0);
+    h_dvl(1, 14) = skew_l_pd(1);
+    h_dvl(2, 14) = skew_l_pd(2);
 
-  Eigen::Matrix3d r_dvl =
-      Eigen::Matrix<double, 1, 3>(sigma_meas_dvl_x, sigma_meas_dvl_y,
-                                  sigma_meas_dvl_z).asDiagonal();
-  auto k_dvl_tmp = h_dvl * kalman_matrix_.p_ * h_dvl.transpose() + r_dvl;
-  auto k_dvl = kalman_matrix_.p_ * h_dvl.transpose() * k_dvl_tmp.inverse();
-  Eigen::Matrix<double, 16, 16> eye16 = Eigen::Matrix<double, 16, 16>::Zero();
-  kalman_matrix_.p_ = (eye16 - k_dvl * h_dvl) * kalman_matrix_.p_;
-  // Prediction
-  auto dvl_hat =
-      extra_states_.r_n_b * states_.vel_n + extra_states_.w_ib_b.cross(l_pd);
+    Eigen::Matrix3d r_dvl =
+        Eigen::Matrix<double, 1, 3>(sigma_meas_dvl_x, sigma_meas_dvl_y,
+                                    sigma_meas_dvl_z).asDiagonal();
+    auto k_dvl_tmp = h_dvl * kalman_matrix_.p_ * h_dvl.transpose() + r_dvl;
+    auto k_dvl = kalman_matrix_.p_ * h_dvl.transpose() * k_dvl_tmp.inverse();
+    Eigen::Matrix<double, 16, 16> eye16 = Eigen::Matrix<double, 16, 16>::Zero();
+    kalman_matrix_.p_ = (eye16 - k_dvl * h_dvl) * kalman_matrix_.p_;
+    // Prediction
+    auto dvl_hat =
+        extra_states_.r_n_b * states_.vel_n + extra_states_.w_ib_b.cross(l_pd);
 
-  auto d_z_dvl = dvl_raw_data - dvl_hat;
-  auto d_x_dvl = k_dvl * d_z_dvl;
-  UpdateStates(d_x_dvl);
+    auto d_z_dvl = dvl_data - dvl_hat;
+    auto d_x_dvl = k_dvl * d_z_dvl;
+    UpdateStates(d_x_dvl);
+  }
 }
 
 //------------------------------------------------------------------------------
 //
 void ExtendedKalmanFilter::UpdateBaro(const double &baro_meas) ATLAS_NOEXCEPT {
-  static double p_surface = 100000;
-  // Is the submarine underwater ?
-  // Value in [Pa]
-  if (baro_meas > p_surface) {
-    static double rho_water = 1000;  // [kh/m3]
-    // Saunder-Fofonoff Equation
-    auto depth_meas = (baro_meas - p_surface) / (rho_water * ge_);
+  double depth_meas = 0;
+  static auto rho_water = 1000;  // [kh/m3]
 
-    // Aiding Measurement Model
-    auto l_tp = extra_states_.r_n_b * l_pp;
-    auto skew_l_tp = atlas::SkewMatrix(l_tp);
-    Eigen::Matrix<double, 1, 16> h_baro = Eigen::Matrix<double, 1, 16>::Zero();
-    Eigen::Matrix<double, 1, 3> tmp_mat =
-        -Eigen::Matrix<double, 1, 3>(0, 0, 1) * skew_l_tp;
-    h_baro(0, 2) = 1;
-    h_baro(0, 6) = tmp_mat(0);
-    h_baro(0, 7) = tmp_mat(1);
-    h_baro(0, 8) = tmp_mat(2);
-    h_baro(0, 15) = 1 / (rho_water * ge_);
+  if (baro_meas > surface_pressure) {
+    // positive depth (underwater)
+    // Saunder-Fofonoff equation
+    depth_meas = (baro_meas - surface_pressure) / (rho_water * ge_);
+  } else {
+    // negative depth (outOfWater)
+    static auto h_s = 0;
+    static auto p_s = surface_pressure / 100;  // Pressure in mbar
+    static auto t_s = air_temperature;         // Temperature in Kelvin
+    static auto p_b = baro_meas / 100;         // Pressure in mbar
 
-    double r_baro = sigma_meas_baro;
-    double depth_hat = states_.pos_n(2);
-    double d_z_baro = depth_meas - depth_hat;
+    static auto k_t = 0.0065;  // K/m
+    static auto g0 = 9.8065;   // m/s^2
+    static auto r = 287.1;     // J/kg/K
 
-    // Apparently canno't do coefficient-wise operation on matrix with Eigen
-    // And we need to convert to array first. Lot of type casting here...
-    // see: http://eigen.tuxfamily.org/dox-devel/group__TutorialArrayClass.html
-    auto k_baro_tmp = h_baro * kalman_matrix_.p_ * h_baro.transpose();
-    auto k_baro_tmp_arr = k_baro_tmp.array() + r_baro;
-    auto k_baro = kalman_matrix_.p_ * h_baro.transpose() *
-                  k_baro_tmp_arr.matrix().inverse();
-    auto d_x = k_baro * d_z_baro;
-    UpdateStates(d_x);
+    depth_meas = -t_s / k_t * (std::pow(p_b / p_s, -r * k_t / g0) - 1) + h_s;
   }
+
+  // Aiding Measurement Model
+  auto l_tp = extra_states_.r_n_b * l_pp;
+  auto skew_l_tp = atlas::SkewMatrix(l_tp);
+  Eigen::Matrix<double, 1, 16> h_baro = Eigen::Matrix<double, 1, 16>::Zero();
+  Eigen::Matrix<double, 1, 3> tmp_mat =
+      -Eigen::Matrix<double, 1, 3>(0, 0, 1) * skew_l_tp;
+  h_baro(0, 2) = 1;
+  h_baro(0, 6) = tmp_mat(0);
+  h_baro(0, 7) = tmp_mat(1);
+  h_baro(0, 8) = tmp_mat(2);
+  h_baro(0, 15) = 1 / (rho_water * ge_);
+
+  double r_baro = sigma_meas_baro;
+  double depth_hat = states_.pos_n(2);
+  double d_z_baro = depth_meas - depth_hat;
+
+  // Apparently canno't do coefficient-wise operation on matrix with Eigen
+  // And we need to convert to array first. Lot of type casting here...
+  // see: http://eigen.tuxfamily.org/dox-devel/group__TutorialArrayClass.html
+  auto k_baro_tmp = h_baro * kalman_matrix_.p_ * h_baro.transpose();
+  auto k_baro_tmp_arr = k_baro_tmp.array() + r_baro;
+  auto k_baro = kalman_matrix_.p_ * h_baro.transpose() *
+                k_baro_tmp_arr.matrix().inverse();
+  auto d_x = k_baro * d_z_baro;
+  UpdateStates(d_x);
 }
 
 //------------------------------------------------------------------------------
