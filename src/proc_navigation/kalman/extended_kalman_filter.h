@@ -159,6 +159,14 @@ class ExtendedKalmanFilter : public atlas::Runnable,
 
   void UpdateStates(const Eigen::Matrix<double, 16, 1> &dx) ATLAS_NOEXCEPT;
 
+  void CorrectNaN(DvlMessage &msg) const ATLAS_NOEXCEPT;
+  void CorrectNaN(ImuMessage &msg) const ATLAS_NOEXCEPT;
+  void CorrectNaN(MagMessage &msg) const ATLAS_NOEXCEPT;
+  void CorrectNaN(BaroMessage &msg) const ATLAS_NOEXCEPT;
+
+  template <class Tp_>
+  void ReplaceNaNByZero(Tp_ &, const std::string &) const ATLAS_NOEXCEPT;
+
   //==========================================================================
   // P R I V A T E   M E M B E R S
 
@@ -225,6 +233,18 @@ ExtendedKalmanFilter::GetKalmanStates() const ATLAS_NOEXCEPT {
 ATLAS_INLINE const ExtendedKalmanFilter::ExtraStates &
 ExtendedKalmanFilter::GetExtraStates() const ATLAS_NOEXCEPT {
   return extra_states_;
+}
+
+//------------------------------------------------------------------------------
+//
+template <class Tp_>
+ATLAS_INLINE void ExtendedKalmanFilter::ReplaceNaNByZero(
+    Tp_ &val, const std::string &str) const ATLAS_NOEXCEPT {
+  if (std::isnan(val)) {
+    ROS_WARN_STREAM("Received a NaN on the " << str
+                                             << " value, replacing by 0.");
+    val = 0;
+  }
 }
 
 }  // namespace proc_navigation

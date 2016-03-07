@@ -7,6 +7,17 @@
 
 # The time of the initialisation step
 /proc_navigation/ekf/t_init : 0.5
+# Flag that states if we should estimate the gravity with inertial measures or
+# manually
+/proc_navigation/ekf/manual_gravity : true
+# Value of the gravity if set manually
+/proc_navigation/ekf/gravity : 9.8
+# The angle between the heading of the AUV and the DVL in deg
+/proc_navigation/ekf/heading_shift_dvl : -45
+# The temperature of the atmostphere in K
+/proc_navigation/ekf/air_temperature : 298.15 # [K] (25 degrees Celcius)
+# The pressure at the surface of the water in [PA]
+/proc_navigation/ekf/surface_pressure : 101325
 
 # ********* Control and Tuning ***********
 
@@ -15,22 +26,22 @@
 # Is the measure of magnetometer activated
 /proc_navigation/ekf/active_mag : true
 # Is the measure of DVL activated
-/proc_navigation/ekf/active_dvl : false
+/proc_navigation/ekf/active_dvl : true
 # Is the measure of barometer activated
-/proc_navigation/ekf/active_baro : false
+/proc_navigation/ekf/active_baro : true
 
 # ********* Measure variances ***********
 
 # Gravity measurements variances
-/proc_navigation/ekf/sigma_meas_gravity : 10.0
+/proc_navigation/ekf/sigma_meas_gravity : 15.0
 # Magneto measurements variances
-/proc_navigation/ekf/sigma_meas_mag : 5.0
+/proc_navigation/ekf/sigma_meas_mag : 10.0
 # DVL measurements variances
-/proc_navigation/ekf/sigma_meas_dvl_x : 3.0
-/proc_navigation/ekf/sigma_meas_dvl_y : 3.0
-/proc_navigation/ekf/sigma_meas_dvl_z : 5.0
+/proc_navigation/ekf/sigma_meas_dvl_x : 10.0
+/proc_navigation/ekf/sigma_meas_dvl_y : 10.0
+/proc_navigation/ekf/sigma_meas_dvl_z : 20.0
 # Baro measurements variances
-/proc_navigation/ekf/sigma_meas_baro : 10.0
+/proc_navigation/ekf/sigma_meas_baro : 40.0
 
 # Kalman initialization states uncertainty
 /proc_navigation/ekf/sigma0_pos_x : 0.01
@@ -42,12 +53,12 @@
 /proc_navigation/ekf/sigma0_rho_x : 0.01
 /proc_navigation/ekf/sigma0_rho_y : 0.01
 /proc_navigation/ekf/sigma0_rho_z : 0.01
-/proc_navigation/ekf/sigma0_bias_acc : 0.001
+/proc_navigation/ekf/sigma0_bias_acc : 0.1
 /proc_navigation/ekf/sigma0_bias_gyr : 0.001
 /proc_navigation/ekf/sigma0_bias_baro : 0.001
 
 # Propagation uncertainty
-/proc_navigation/ekf/sigma__meas_acc : 10
+/proc_navigation/ekf/sigma__meas_acc : 15
 /proc_navigation/ekf/sigma_meas_gyr : 0.01
 /proc_navigation/ekf/sigma_walk_bias_acc : 0.001
 /proc_navigation/ekf/sigma_walk_bias_gyr : 0.001

@@ -63,6 +63,11 @@ class EkfConfiguration {
 
   // The constants for the tuning of the Kalman filter
   float t_init;
+  bool manual_gravity;
+  float gravity;
+  float heading_shift_dvl;
+  float air_temperature;
+  float surface_pressure;
   bool active_gravity;
   bool active_mag;
   bool active_dvl;

@@ -34,6 +34,11 @@ namespace proc_navigation {
 //
 EkfConfiguration::EkfConfiguration(const ros::NodeHandle &nh) ATLAS_NOEXCEPT
     : t_init(0.5f),
+      manual_gravity(true),
+      gravity(9.8),
+      heading_shift_dvl(-45),
+      air_temperature(298.15),
+      surface_pressure(101325),
       active_gravity(true),
       active_mag(true),
       active_dvl(true),
@@ -83,6 +88,11 @@ EkfConfiguration::EkfConfiguration(const ros::NodeHandle &nh) ATLAS_NOEXCEPT
 //
 EkfConfiguration::EkfConfiguration(const EkfConfiguration &rhs) ATLAS_NOEXCEPT {
   t_init = rhs.t_init;
+  manual_gravity = rhs.manual_gravity;
+  gravity = rhs.gravity;
+  heading_shift_dvl = rhs.heading_shift_dvl;
+  air_temperature = rhs.air_temperature;
+  surface_pressure = rhs.surface_pressure;
   active_gravity = rhs.active_gravity;
   active_mag = rhs.active_mag;
   active_dvl = rhs.active_dvl;
@@ -127,6 +137,11 @@ EkfConfiguration::EkfConfiguration(const EkfConfiguration &rhs) ATLAS_NOEXCEPT {
 //
 EkfConfiguration::EkfConfiguration(EkfConfiguration &&rhs) ATLAS_NOEXCEPT {
   t_init = rhs.t_init;
+  manual_gravity = rhs.manual_gravity;
+  gravity = rhs.gravity;
+  heading_shift_dvl = rhs.heading_shift_dvl;
+  air_temperature = rhs.air_temperature;
+  surface_pressure = rhs.surface_pressure;
   active_gravity = rhs.active_gravity;
   active_mag = rhs.active_mag;
   active_dvl = rhs.active_dvl;
@@ -178,6 +193,11 @@ EkfConfiguration::~EkfConfiguration() ATLAS_NOEXCEPT {}
 //
 void EkfConfiguration::DeserializeConfiguration() ATLAS_NOEXCEPT {
   FindParameter("/ekf/t_init", t_init);
+  FindParameter("/ekf/manual_gravity", manual_gravity);
+  FindParameter("/ekf/gravity", gravity);
+  FindParameter("/ekf/heading_shift_dvl", heading_shift_dvl);
+  FindParameter("/ekf/air_temperature", air_temperature);
+  FindParameter("/ekf/surface_pressure", surface_pressure);
   FindParameter("/ekf/active_gravity", active_gravity);
   FindParameter("/ekf/active_mag", active_mag);
   FindParameter("/ekf/active_dvl", active_dvl);
@@ -229,6 +249,9 @@ void EkfConfiguration::DeserializeConfiguration() ATLAS_NOEXCEPT {
   }
   l_pd = Eigen::Vector3d(l_pd_tmp[0], l_pd_tmp[1], l_pd_tmp[2]);
   l_pp = Eigen::Vector3d(l_pp_tmp[0], l_pp_tmp[1], l_pp_tmp[2]);
+
+  // Converting the value of the pressure in rad
+  heading_shift_dvl = static_cast<float>(heading_shift_dvl * M_PI / 180);
 }
 
 //------------------------------------------------------------------------------

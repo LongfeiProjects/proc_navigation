@@ -68,7 +68,8 @@ ExtendedKalmanFilter::~ExtendedKalmanFilter() ATLAS_NOEXCEPT {}
 //------------------------------------------------------------------------------
 //
 void ExtendedKalmanFilter::Initialize() {
-  while (!imu_->IsNewDataReady());
+  while (!imu_->IsNewDataReady())
+    ;
 
   // The vectors of interest for the initilization states.
   std::array<std::vector<double>, 3> g;
@@ -81,6 +82,7 @@ void ExtendedKalmanFilter::Initialize() {
   while (init_timer_.MicroSeconds() * std::pow(10, -6) < t_init) {
     if (imu_->IsNewDataReady()) {
       auto imu_msg = imu_->GetLastData();
+      CorrectNaN(imu_msg);
       std::get<0>(g).push_back(imu_msg.linear_acceleration.x);
       std::get<1>(g).push_back(imu_msg.linear_acceleration.y);
       std::get<2>(g).push_back(imu_msg.linear_acceleration.z);
@@ -88,6 +90,7 @@ void ExtendedKalmanFilter::Initialize() {
 
     if (mag_->IsNewDataReady() && active_mag) {
       auto mag_msg = mag_->GetLastData();
+      CorrectNaN(mag_msg);
       std::get<0>(m).push_back(mag_msg.magnetic_field.x);
       std::get<1>(m).push_back(mag_msg.magnetic_field.y);
       std::get<2>(m).push_back(mag_msg.magnetic_field.z);
@@ -95,21 +98,67 @@ void ExtendedKalmanFilter::Initialize() {
 
     if (dvl_->IsNewDataReady() && active_dvl) {
       auto dvl_msg = dvl_->GetLastData();
+      CorrectNaN(dvl_msg);
       std::get<0>(vel).push_back(dvl_msg.twist.twist.linear.x);
       std::get<1>(vel).push_back(dvl_msg.twist.twist.linear.y);
       std::get<2>(vel).push_back(dvl_msg.twist.twist.linear.z);
     }
 
     if (baro_->IsNewDataReady() && active_baro) {
-      pressure.push_back(baro_->GetLastData().data);
+      auto baro_msg = baro_->GetLastData();
+      pressure.push_back(baro_msg.data);
+      CorrectNaN(baro_msg);
     }
   }
 
-  states_.pos_n = Eigen::Vector3d(0, 0, 0);
+  states_.b = CalculateInitialRotationMatrix(g, m);
+
+  auto baro_mean = atlas::Mean(pressure);
+  double depth0 = 0;
+  if (baro_mean > surface_pressure) {
+    // positive depth (underwater)
+    auto rho_water = 1000;  // [kh/m3]
+    // Saunder-Fofonoff equation
+    depth0 = (baro_mean - surface_pressure) / (rho_water * ge_);
+  } else {
+    // negative depth (outOfWater)
+    auto h_s = 0;
+    auto P_s = surface_pressure / 100;  // Pressure in mbar
+    auto T_s = air_temperature;         // Temperature in Kelvin
+    auto P_B = baro_mean / 100;         // Pressure in mbar
+
+    auto k_T = 0.0065;  // K/m
+    auto g0 = 9.8065;   // m/s^2
+    auto R = 287.1;     // J/kg/K
+
+    depth0 = -T_s / k_T * (std::pow(P_B / P_s, -R * k_T / g0) - 1) + h_s;
+  }
+
+  if (depth0 > 0) {
+    Eigen::Matrix3d r_b2dvl;
+    r_b2dvl(0, 0) = std::cos(heading_shift_dvl);
+    r_b2dvl(0, 1) = -std::sin(heading_shift_dvl);
+    r_b2dvl(0, 2) = 0;
+    r_b2dvl(1, 0) = std::sin(heading_shift_dvl);
+    r_b2dvl(1, 1) = std::cos(heading_shift_dvl);
+    r_b2dvl(1, 2) = 0;
+    r_b2dvl(2, 0) = 0;
+    r_b2dvl(2, 1) = 0;
+    r_b2dvl(2, 2) = 1;
+
+    auto vel_dvl = Eigen::Vector3d(atlas::Mean(std::get<0>(vel)),
+                                   atlas::Mean(std::get<1>(vel)),
+                                   atlas::Mean(std::get<2>(vel)));
+
+    states_.vel_n = extra_states_.r_b_n * r_b2dvl.transpose() * vel_dvl;
+  } else {
+    states_.vel_n = Eigen::Vector3d(0, 0, 0);
+  }
+
+  states_.pos_n = Eigen::Vector3d(0, 0, depth0);
   states_.vel_n = Eigen::Vector3d(atlas::Mean(std::get<0>(vel)),
                                   atlas::Mean(std::get<1>(vel)),
                                   atlas::Mean(std::get<2>(vel)));
-  states_.b = CalculateInitialRotationMatrix(g, m);
   states_.acc_bias = Eigen::Vector3d(0, 0, 0);
   states_.gyro_bias = Eigen::Vector3d(0, 0, 0);
   states_.baro_bias = 0;
@@ -160,7 +209,12 @@ Eigen::Quaterniond ExtendedKalmanFilter::CalculateInitialRotationMatrix(
   g_mean(0) = -imu_sign_x * atlas::Mean(std::get<0>(g));
   g_mean(1) = -imu_sign_y * atlas::Mean(std::get<1>(g));
   g_mean(2) = -imu_sign_z * atlas::Mean(std::get<2>(g));
-  ge_ = g_mean.norm();
+
+  if (manual_gravity) {
+    ge_ = gravity;
+  } else {
+    ge_ = g_mean.norm();
+  }
   g_n_ = Eigen::Vector3d(0, 0, ge_);
 
   // Calculate initial roll angle - Equation 10.14 - Farrell
@@ -449,8 +503,7 @@ void ExtendedKalmanFilter::UpdateGravity(const Eigen::Vector3d &f_b)
     ATLAS_NOEXCEPT {
   Eigen::Matrix3d skew_g_n = atlas::SkewMatrix(g_n_);
 
-  Eigen::Matrix<double, 3, 16> h_gravity =
-      Eigen::Matrix<double, 3, 16>::Zero();
+  Eigen::Matrix<double, 3, 16> h_gravity = Eigen::Matrix<double, 3, 16>::Zero();
   h_gravity(0, 6) = -skew_g_n(0, 0);
   h_gravity(0, 7) = -skew_g_n(0, 1);
   h_gravity(0, 8) = -skew_g_n(0, 2);
@@ -607,8 +660,7 @@ void ExtendedKalmanFilter::UpdateBaro(const double &baro_meas) ATLAS_NOEXCEPT {
     auto k_baro_tmp_arr = k_baro_tmp.array() + r_baro;
     auto k_baro = kalman_matrix_.p_ * h_baro.transpose() *
                   k_baro_tmp_arr.matrix().inverse();
-    auto d_x = k_baro
-        * d_z_baro;
+    auto d_x = k_baro * d_z_baro;
     UpdateStates(d_x);
   }
 }
@@ -652,6 +704,46 @@ void ExtendedKalmanFilter::UpdateStates(const Eigen::Matrix<double, 16, 1> &dx)
   extra_states_.r_n_b = extra_states_.r_b_n.transpose();
   states_.b = atlas::RotToQuat(extra_states_.r_n_b);
   extra_states_.euler = atlas::QuatToEuler(states_.b);
+}
+
+//------------------------------------------------------------------------------
+//
+void ExtendedKalmanFilter::CorrectNaN(DvlMessage &msg) const ATLAS_NOEXCEPT {
+  ReplaceNaNByZero(msg.twist.twist.angular.x, "twist.angular.x");
+  ReplaceNaNByZero(msg.twist.twist.angular.y, "twist.angular.y");
+  ReplaceNaNByZero(msg.twist.twist.angular.z, "twist.angular.z");
+  ReplaceNaNByZero(msg.twist.twist.linear.x, "twist.linear.x");
+  ReplaceNaNByZero(msg.twist.twist.linear.y, "twist.linear.y");
+  ReplaceNaNByZero(msg.twist.twist.linear.z, "twist.linear.z");
+}
+
+//------------------------------------------------------------------------------
+//
+void ExtendedKalmanFilter::CorrectNaN(ImuMessage &msg) const ATLAS_NOEXCEPT {
+  ReplaceNaNByZero(msg.orientation.w, "orientation.w");
+  ReplaceNaNByZero(msg.orientation.x, "orientation.x");
+  ReplaceNaNByZero(msg.orientation.y, "orientation.y");
+  ReplaceNaNByZero(msg.orientation.z, "orientation.z");
+  ReplaceNaNByZero(msg.angular_velocity.x, "angular_velocity.x");
+  ReplaceNaNByZero(msg.angular_velocity.y, "angular_velocity.y");
+  ReplaceNaNByZero(msg.angular_velocity.z, "angular_velocity.z");
+  ReplaceNaNByZero(msg.linear_acceleration.x, "angular_velocity.x");
+  ReplaceNaNByZero(msg.linear_acceleration.y, "linear_acceleration.y");
+  ReplaceNaNByZero(msg.linear_acceleration.z, "linear_acceleration.z");
+}
+
+//------------------------------------------------------------------------------
+//
+void ExtendedKalmanFilter::CorrectNaN(MagMessage &msg) const ATLAS_NOEXCEPT {
+  ReplaceNaNByZero(msg.magnetic_field.x, "magnetic_field.x");
+  ReplaceNaNByZero(msg.magnetic_field.y, "magnetic_field.y");
+  ReplaceNaNByZero(msg.magnetic_field.z, "magnetic_field.z");
+}
+
+//------------------------------------------------------------------------------
+//
+void ExtendedKalmanFilter::CorrectNaN(BaroMessage &msg) const ATLAS_NOEXCEPT {
+  ReplaceNaNByZero(msg.data, "data");
 }
 
 }  // namespace proc_navigation
