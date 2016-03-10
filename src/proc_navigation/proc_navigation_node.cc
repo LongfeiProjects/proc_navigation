@@ -73,12 +73,14 @@ void ProcNavigationNode::Spin() ATLAS_NOEXCEPT {
 //
 void ProcNavigationNode::OnSubjectNotify(atlas::Subject<> &subject)
     ATLAS_NOEXCEPT {
-  nav_msgs::Odometry odom;
-  odom.header.stamp = ros::Time::now();
-  odom.header.frame_id = "odom";
-
+  auto current_time = ros::Time::now();
   auto state = ekf_.GetStates();
   auto extra = ekf_.GetExtraStates();
+
+  nav_msgs::Odometry odom;
+  odom.header.stamp = current_time;
+  odom.header.frame_id = "odom";
+  odom.child_frame_id = "base_link";
 
   odom.twist.twist.linear.x = state.vel_n(0);
   odom.twist.twist.linear.y = state.vel_n(1);

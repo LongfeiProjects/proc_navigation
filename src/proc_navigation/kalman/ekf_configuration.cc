@@ -77,7 +77,7 @@ EkfConfiguration::EkfConfiguration(const ros::NodeHandle &nh) ATLAS_NOEXCEPT
       mag_sign_x(1),
       mag_sign_y(-1),
       mag_sign_z(-1),
-      baro_topic("/provider_can/barometer/pressure"),
+      baro_topic("/auv6/pressure"),
       dvl_topic("/provider_dvl/twist"),
       imu_topic("/provider_imu/imu"),
       mag_topic("/provider_imu/magnetic_field"),

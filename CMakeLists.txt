@@ -35,7 +35,7 @@ if (NOT CMAKE_BUILD_TYPE)
 endif (NOT CMAKE_BUILD_TYPE)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++11 -Wall")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11 -O3 -s")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11 -O3 -s -g")
 
 set(proc_navigation_SRC_DIR "src")
 
@@ -48,12 +48,10 @@ find_package(
     std_msgs
     geometry_msgs
     sensor_msgs
+    nav_msgs
     message_generation
     lib_atlas
     sonia_msgs
-    provider_dvl
-    provider_imu
-    provider_can
 )
 
 find_package(catkin REQUIRED cmake_modules)
@@ -67,12 +65,10 @@ catkin_package(
     std_msgs
     geometry_msgs
     sensor_msgs
+    nav_msgs
     message_runtime
     lib_atlas
     sonia_msgs
-    provider_dvl
-    provider_imu
-    provider_can
     DEPENDS Eigen
 )
 
@@ -91,7 +87,6 @@ include_directories(
     ${Eigen_INCLUDE_DIRS}
     ${proc_navigation_SRC_DIR}
     ${lib_atlas_INCLUDE_DIRS}
-    ${provider_dvl_INCLUDE_DIRS}
 )
 
 #==========================================================================
@@ -109,3 +104,4 @@ add_dependencies(${PROJECT_NAME}_node sonia_msgs_generate_messages_cpp)
 if (CATKIN_ENABLE_TESTING AND ${CMAKE_CURRENT_SOURCE_DIR}/test)
   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
 endif ()
+
