@@ -140,7 +140,6 @@ void ExtendedKalmanFilter::Initialize() {
   }
 
   if (depth0 > 0) {
-    ;
     extra_states_.r_b_dvl(0, 0) = std::cos(heading_shift_dvl);
     extra_states_.r_b_dvl(0, 1) = -std::sin(heading_shift_dvl);
     extra_states_.r_b_dvl(0, 2) = 0;
@@ -162,9 +161,6 @@ void ExtendedKalmanFilter::Initialize() {
   }
 
   states_.pos_n = Eigen::Vector3d(0, 0, depth0);
-  states_.vel_n = Eigen::Vector3d(atlas::Mean(std::get<0>(vel)),
-                                  atlas::Mean(std::get<1>(vel)),
-                                  atlas::Mean(std::get<2>(vel)));
   states_.acc_bias = Eigen::Vector3d(0, 0, 0);
   states_.gyro_bias = Eigen::Vector3d(0, 0, 0);
   states_.baro_bias = 0;
