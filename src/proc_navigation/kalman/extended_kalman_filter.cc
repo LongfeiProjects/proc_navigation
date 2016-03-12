@@ -151,9 +151,9 @@ void ExtendedKalmanFilter::Initialize() {
     extra_states_.r_b_dvl(2, 1) = 0;
     extra_states_.r_b_dvl(2, 2) = 1;
 
-    auto vel_dvl = Eigen::Vector3d(atlas::Mean(std::get<0>(vel)),
-                                   atlas::Mean(std::get<1>(vel)),
-                                   atlas::Mean(std::get<2>(vel)));
+    auto vel_dvl = Eigen::Vector3d(std::get<0>(vel).back(),
+                                   std::get<1>(vel).back(),
+                                   std::get<2>(vel).back());
 
     states_.vel_n =
         extra_states_.r_b_n * extra_states_.r_b_dvl.transpose() * vel_dvl;
