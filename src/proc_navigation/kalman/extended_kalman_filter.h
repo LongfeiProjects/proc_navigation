@@ -33,6 +33,7 @@
 #include <geometry_msgs/TwistWithCovarianceStamped.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/MagneticField.h>
+#include <sensor_msgs/FluidPressure.h>
 #include <eigen3/Eigen/Eigen>
 #include <lib_atlas/macros.h>
 #include <lib_atlas/pattern/subject.h>
@@ -55,6 +56,7 @@ class ExtendedKalmanFilter : public atlas::Runnable,
   using PtrList = std::vector<ExtendedKalmanFilter::Ptr>;
   using ConstPtrList = std::vector<ExtendedKalmanFilter::ConstPtr>;
 
+  //using BaroMessage = sensor_msgs::FluidPressure;
   using BaroMessage = std_msgs::Float64;
   using DvlMessage = geometry_msgs::TwistWithCovarianceStamped;
   using ImuMessage = sensor_msgs::Imu;
