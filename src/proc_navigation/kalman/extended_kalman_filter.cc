@@ -83,14 +83,17 @@ void ExtendedKalmanFilter::Initialize() {
   std::vector<double> pressure;
 
   init_timer_.Start();
+  double real_stamp = 0;
 
-  while (init_timer_.MicroSeconds() * std::pow(10, -6) < t_init) {
+  while ((init_timer_.MicroSeconds() * std::pow(10, -6) < t_init) &&
+      (real_stamp < t_init)) {
     if (imu_->IsNewDataReady()) {
       auto imu_msg = imu_->GetLastData();
       CorrectNaN(imu_msg);
       std::get<0>(g).push_back(imu_msg.linear_acceleration.x);
       std::get<1>(g).push_back(imu_msg.linear_acceleration.y);
       std::get<2>(g).push_back(imu_msg.linear_acceleration.z);
+      real_stamp += imu_->GetDeltaTime();
     }
 
     if (mag_->IsNewDataReady() && active_mag) {
