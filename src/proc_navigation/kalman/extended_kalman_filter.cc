@@ -627,9 +627,15 @@ void ExtendedKalmanFilter::UpdateDvl(const Eigen::Vector3d &dvl_raw_data)
     h_dvl(2, 3) = extra_states_.r_n_b(2, 0);
     h_dvl(2, 4) = extra_states_.r_n_b(2, 1);
     h_dvl(2, 5) = extra_states_.r_n_b(2, 2);
-    h_dvl(0, 14) = skew_l_pd(0);
-    h_dvl(1, 14) = skew_l_pd(1);
-    h_dvl(2, 14) = skew_l_pd(2);
+    h_dvl(0, 13) = skew_l_pd(0, 0);
+    h_dvl(0, 12) = skew_l_pd(0, 1);
+    h_dvl(0, 14) = skew_l_pd(0, 2);
+    h_dvl(1, 13) = skew_l_pd(1, 0);
+    h_dvl(1, 14) = skew_l_pd(1, 1);
+    h_dvl(1, 15) = skew_l_pd(1, 2);
+    h_dvl(2, 14) = skew_l_pd(2, 0);
+    h_dvl(2, 14) = skew_l_pd(2, 1);
+    h_dvl(2, 15) = skew_l_pd(2, 2);
 
     Eigen::Matrix3d r_dvl =
         Eigen::Matrix<double, 1, 3>(sigma_meas_dvl_x, sigma_meas_dvl_y,
