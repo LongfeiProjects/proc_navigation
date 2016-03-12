@@ -115,6 +115,13 @@ class EkfConfiguration {
   std::string imu_topic;
   std::string mag_topic;
 
+  // Members for the simulation
+  bool simulation_active;
+  double simuation_dt_imu;
+  double simulation_dt_mag;
+  double simulation_dt_dvl;
+  double simulation_dt_baro;
+
  private:
   //============================================================================
   // P R I V A T E   M E T H O D S

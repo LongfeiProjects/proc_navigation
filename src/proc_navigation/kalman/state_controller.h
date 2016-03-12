@@ -84,7 +84,19 @@ class StateController {
 
   void Callback(const DataType &msg) ATLAS_NOEXCEPT;
 
+  /**
+   * The delta time is the difference of the stamp in the header of two
+   * consecutive packages. It highly depend on the implementation of the
+   * package that sends the message and this may not be functionnal.
+   */
   double GetDeltaTime() const ATLAS_NOEXCEPT;
+
+  /**
+   * The real delta time is calculated with a timer in this node.
+   * Every time we receive a message, the delta time is calculated and the timer
+   * is being resetted.
+   */
+  double GetRealDeltaTime() const ATLAS_NOEXCEPT;
 
  private:
   //============================================================================
@@ -102,7 +114,10 @@ class StateController {
    */
   atlas::MicroTimer timer_;
 
+  double real_dt_;
   double dt_;
+
+  uint64_t message_count_;
 
   ros::Subscriber subscriber_;
 };

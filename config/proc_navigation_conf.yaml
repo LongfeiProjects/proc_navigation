@@ -7,3 +7,9 @@
 /proc_navigation/topics/dvl: "/provider_dvl/twist"
 /proc_navigation/topics/imu: "/provider_imu/imu"
 /proc_navigation/topics/mag: "/provider_imu/magnetic_field"
+
+/proc_navigation/simulation/active: false
+/proc_navigation/simulation/dt_imu: 0.01 # 100 Hz
+/proc_navigation/simulation/dt_mag: 0.01 # 100 Hz
+/proc_navigation/simulation/dt_dvl: 0.2857142857142857 # 3.5Hz
+/proc_navigation/simulation/dt_baro: 0.072 # 13.8Hz

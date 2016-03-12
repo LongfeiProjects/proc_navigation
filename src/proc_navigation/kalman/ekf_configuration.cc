@@ -81,6 +81,11 @@ EkfConfiguration::EkfConfiguration(const ros::NodeHandle &nh) ATLAS_NOEXCEPT
       dvl_topic("/provider_dvl/twist"),
       imu_topic("/provider_imu/imu"),
       mag_topic("/provider_imu/magnetic_field"),
+      simulation_active(false),
+      simuation_dt_imu(0.01),
+      simulation_dt_mag(0.01),
+      simulation_dt_dvl(0.2857142857142857f),
+      simulation_dt_baro(0.072),
       nh_(nh) {
   DeserializeConfiguration();
 }
@@ -131,6 +136,11 @@ EkfConfiguration::EkfConfiguration(const EkfConfiguration &rhs) ATLAS_NOEXCEPT {
   mag_sign_x = rhs.mag_sign_x;
   mag_sign_y = rhs.mag_sign_y;
   mag_sign_z = rhs.mag_sign_z;
+  simulation_active = rhs.simulation_active;
+      simuation_dt_imu = rhs.simuation_dt_imu;
+      simulation_dt_mag = rhs.simulation_dt_mag;
+      simulation_dt_dvl = rhs.simulation_dt_dvl;
+      simulation_dt_baro = rhs.simulation_dt_baro;
   nh_ = rhs.nh_;
 }
 
@@ -180,6 +190,11 @@ EkfConfiguration::EkfConfiguration(EkfConfiguration &&rhs) ATLAS_NOEXCEPT {
   mag_sign_x = rhs.mag_sign_x;
   mag_sign_y = rhs.mag_sign_y;
   mag_sign_z = rhs.mag_sign_z;
+  simulation_active = rhs.simulation_active;
+  simuation_dt_imu = rhs.simuation_dt_imu;
+  simulation_dt_mag = rhs.simulation_dt_mag;
+  simulation_dt_dvl = rhs.simulation_dt_dvl;
+  simulation_dt_baro = rhs.simulation_dt_baro;
   nh_ = rhs.nh_;
 }
 
@@ -235,13 +250,19 @@ void EkfConfiguration::DeserializeConfiguration() ATLAS_NOEXCEPT {
   FindParameter("/device_sign/mag/y", mag_sign_y);
   FindParameter("/device_sign/mag/z", mag_sign_z);
 
+  FindParameter("/proc_navigation/simulation/active", simulation_active);
+  FindParameter("/proc_navigation/simulation/dt_imu", simuation_dt_imu);
+  FindParameter("/proc_navigation/simulation/dt_mag", simulation_dt_mag);
+  FindParameter("/proc_navigation/simulation/dt_dvl", simulation_dt_dvl);
+  FindParameter("/proc_navigation/simulation/dt_baro", simulation_dt_baro);
+
   // Getting the matrix for Eigen compatible types
-  std::vector<float> l_pd_tmp({static_cast<float>(l_pd(0)),
-                               static_cast<float>(l_pd(1)),
-                               static_cast<float>(l_pd(2))});
-  std::vector<float> l_pp_tmp({static_cast<float>(l_pp(0)),
-                               static_cast<float>(l_pp(1)),
-                               static_cast<float>(l_pp(2))});
+  std::vector<double> l_pd_tmp({static_cast<double>(l_pd(0)),
+                               static_cast<double>(l_pd(1)),
+                               static_cast<double>(l_pd(2))});
+  std::vector<double> l_pp_tmp({static_cast<double>(l_pp(0)),
+                               static_cast<double>(l_pp(1)),
+                               static_cast<double>(l_pp(2))});
   FindParameter("/ekf/l_pd", l_pd_tmp);
   FindParameter("/ekf/l_pp", l_pp_tmp);
   if (l_pd_tmp.size() != 3 || l_pp_tmp.size() != 3) {
@@ -252,7 +273,7 @@ void EkfConfiguration::DeserializeConfiguration() ATLAS_NOEXCEPT {
   l_pp = Eigen::Vector3d(l_pp_tmp[0], l_pp_tmp[1], l_pp_tmp[2]);
 
   // Converting the value of the pressure in rad
-  heading_shift_dvl = static_cast<float>(heading_shift_dvl * M_PI / 180);
+  heading_shift_dvl = static_cast<double>(heading_shift_dvl * M_PI / 180);
 }
 
 //------------------------------------------------------------------------------
