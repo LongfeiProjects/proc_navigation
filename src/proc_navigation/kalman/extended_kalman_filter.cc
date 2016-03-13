@@ -24,9 +24,9 @@
  * along with S.O.N.I.A. software. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <eigen3/Eigen/Eigen>
-#include <lib_atlas/maths.h>
 #include "proc_navigation/kalman/extended_kalman_filter.h"
+#include <lib_atlas/maths.h>
+#include <eigen3/Eigen/Eigen>
 
 namespace proc_navigation {
 
@@ -59,7 +59,8 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(
                                                    criterions_(),
                                                    is_stationnary_(false),
                                                    ge_(),
-                                                   g_n_() {
+                                                   g_n_(),
+                                                   i_(0) {
   Start();
 }
 
@@ -83,39 +84,54 @@ void ExtendedKalmanFilter::Initialize() {
   std::vector<double> pressure;
 
   init_timer_.Start();
-  double real_stamp = 0;
+  double real_stamp_imu = 0;
+  double real_stamp_dvl = 0;
+  double real_stamp_baro = 0;
+  double real_stamp_mag = 0;
 
   while ((init_timer_.MicroSeconds() * std::pow(10, -6) < t_init) &&
-      (real_stamp < t_init)) {
+         (real_stamp_imu < t_init) && (real_stamp_dvl < t_init) &&
+         (real_stamp_baro < t_init) && (real_stamp_mag < t_init)) {
     if (imu_->IsNewDataReady()) {
-      auto imu_msg = imu_->GetLastData();
-      CorrectNaN(imu_msg);
-      std::get<0>(g).push_back(imu_msg.linear_acceleration.x);
-      std::get<1>(g).push_back(imu_msg.linear_acceleration.y);
-      std::get<2>(g).push_back(imu_msg.linear_acceleration.z);
-      real_stamp += imu_->GetDeltaTime();
+      real_stamp_mag += imu_->GetDeltaTime();
+      if (real_stamp_imu < t_init) {
+        auto imu_msg = imu_->GetLastData();
+        CorrectNaN(imu_msg);
+        std::get<0>(g).push_back(imu_msg.linear_acceleration.x);
+        std::get<1>(g).push_back(imu_msg.linear_acceleration.y);
+        std::get<2>(g).push_back(imu_msg.linear_acceleration.z);
+      }
     }
 
     if (mag_->IsNewDataReady() && active_mag) {
-      auto mag_msg = mag_->GetLastData();
-      CorrectNaN(mag_msg);
-      std::get<0>(m).push_back(mag_msg.magnetic_field.x);
-      std::get<1>(m).push_back(mag_msg.magnetic_field.y);
-      std::get<2>(m).push_back(mag_msg.magnetic_field.z);
+      real_stamp_mag += mag_->GetDeltaTime();
+      if (real_stamp_mag < t_init) {
+        auto mag_msg = mag_->GetLastData();
+        CorrectNaN(mag_msg);
+        std::get<0>(m).push_back(mag_msg.magnetic_field.x);
+        std::get<1>(m).push_back(mag_msg.magnetic_field.y);
+        std::get<2>(m).push_back(mag_msg.magnetic_field.z);
+      }
     }
 
     if (dvl_->IsNewDataReady() && active_dvl) {
-      auto dvl_msg = dvl_->GetLastData();
-      CorrectNaN(dvl_msg);
-      std::get<0>(vel).push_back(dvl_msg.twist.twist.linear.x);
-      std::get<1>(vel).push_back(dvl_msg.twist.twist.linear.y);
-      std::get<2>(vel).push_back(dvl_msg.twist.twist.linear.z);
+      real_stamp_dvl += dvl_->GetDeltaTime();
+      if (real_stamp_dvl < t_init) {
+        auto dvl_msg = dvl_->GetLastData();
+        CorrectNaN(dvl_msg);
+        std::get<0>(vel).push_back(dvl_msg.twist.twist.linear.x);
+        std::get<1>(vel).push_back(dvl_msg.twist.twist.linear.y);
+        std::get<2>(vel).push_back(dvl_msg.twist.twist.linear.z);
+      }
     }
 
     if (baro_->IsNewDataReady() && active_baro) {
-      auto baro_msg = baro_->GetLastData();
-      pressure.push_back(baro_msg.data);
-      CorrectNaN(baro_msg);
+      real_stamp_baro += baro_->GetDeltaTime();
+      if (real_stamp_baro < t_init) {
+        auto baro_msg = baro_->GetLastData();
+        pressure.push_back(baro_msg.data);
+        CorrectNaN(baro_msg);
+      }
     }
   }
 
@@ -153,12 +169,12 @@ void ExtendedKalmanFilter::Initialize() {
     extra_states_.r_b_dvl(2, 1) = 0;
     extra_states_.r_b_dvl(2, 2) = 1;
 
-    auto vel_dvl = Eigen::Vector3d(std::get<0>(vel).back(),
-                                   std::get<1>(vel).back(),
-                                   std::get<2>(vel).back());
+    auto vel_dvl =
+        Eigen::Vector3d(std::get<0>(vel).back(), std::get<1>(vel).back(),
+                        std::get<2>(vel).back());
 
     states_.vel_n =
-        extra_states_.r_b_n * extra_states_.r_b_dvl.transpose() * vel_dvl;
+        extra_states_.r_b_n * extra_states_.r_b_dvl.adjoint() * vel_dvl;
   } else {
     states_.vel_n = Eigen::Vector3d(0, 0, 0);
   }
@@ -268,7 +284,7 @@ Eigen::Quaterniond ExtendedKalmanFilter::CalculateInitialRotationMatrix(
   r0_bn(2, 2) = std::cos(roll) * std::cos(pitch);
 
   extra_states_.r_b_n = r0_bn;
-  extra_states_.r_n_b = r0_bn.transpose();
+  extra_states_.r_n_b = r0_bn.adjoint();
   Eigen::Quaterniond q0 = atlas::RotToQuat(extra_states_.r_n_b);
   extra_states_.euler = atlas::QuatToEuler(q0);
 
@@ -284,13 +300,10 @@ void ExtendedKalmanFilter::Run() {
 
   while (IsRunning()) {
     if (imu_->IsNewDataReady()) {
+      ++i_;
       auto imu_msg = imu_->GetLastData();
       double dt = 0;
-      if(simulation_active) {
-        dt = simuation_dt_imu;
-      } else {
-        dt = imu_->GetDeltaTime();
-      }
+      dt = imu_->GetDeltaTime();
       imu_timer_.Reset();
       imu_timer_.Start();
 
@@ -307,11 +320,11 @@ void ExtendedKalmanFilter::Run() {
       gyr_raw_data(2) = imu_sign_z * imu_msg.angular_velocity.z;
 
       extra_states_.w_ib_b = gyr_raw_data - states_.gyro_bias;
-      criterions_.ufw = extra_states_.w_ib_b.squaredNorm();
+      criterions_.ufw = std::pow(extra_states_.w_ib_b.norm(), 2);
 
       states_.b = atlas::ExactQuat(extra_states_.w_ib_b, dt, states_.b);
       extra_states_.r_n_b = Eigen::Matrix3d(states_.b);
-      extra_states_.r_b_n = extra_states_.r_n_b.transpose();
+      extra_states_.r_b_n = extra_states_.r_n_b.adjoint();
       extra_states_.euler = atlas::QuatToEuler(states_.b);
 
       // Propagation step
@@ -373,8 +386,7 @@ void ExtendedKalmanFilter::Run() {
       }
 
       // Covariance Matrix Simetrization
-      kalman_matrix_.p_ =
-          (kalman_matrix_.p_ + kalman_matrix_.p_.transpose()) / 2;
+      kalman_matrix_.p_ = (kalman_matrix_.p_ + kalman_matrix_.p_.adjoint()) / 2;
 
       Notify();
     }
@@ -498,7 +510,7 @@ void ExtendedKalmanFilter::ErrorsDynamicModelCalculation() ATLAS_NOEXCEPT {
 void ExtendedKalmanFilter::KalmanStatesCovariancePropagation(const double &dt)
     ATLAS_NOEXCEPT {
   Eigen::Matrix<double, 16, 16> q =
-      kalman_matrix_.g_ * kalman_matrix_.qc_ * kalman_matrix_.g_.transpose();
+      kalman_matrix_.g_ * kalman_matrix_.qc_ * kalman_matrix_.g_.adjoint();
 
   Eigen::Matrix<double, 16, 16> q_k = q * dt;
   q_k(0, 0) = q_k(0, 0) + criterions_.ufw * dt;
@@ -509,7 +521,7 @@ void ExtendedKalmanFilter::KalmanStatesCovariancePropagation(const double &dt)
       Eigen::Matrix<double, 16, 16>::Identity(16, 16) + kalman_matrix_.f_ * dt;
 
   kalman_matrix_.p_ =
-      phi_k * kalman_matrix_.p_ * kalman_matrix_.p_.transpose() + q_k;
+      phi_k * kalman_matrix_.p_ * kalman_matrix_.p_.adjoint() + q_k;
 }
 
 //------------------------------------------------------------------------------
@@ -535,9 +547,9 @@ void ExtendedKalmanFilter::UpdateGravity(const Eigen::Vector3d &f_b)
       Eigen::Matrix3d::Identity(3, 3);
 
   Eigen::Matrix<double, 3, 3> s_gravity =
-      h_gravity * kalman_matrix_.p_ * h_gravity.transpose() + r_gravity;
+      h_gravity * kalman_matrix_.p_ * h_gravity.adjoint() + r_gravity;
   Eigen::Matrix<double, 16, 3> k_gravity =
-      kalman_matrix_.p_ * h_gravity.transpose() * s_gravity.inverse();
+      kalman_matrix_.p_ * h_gravity.adjoint() * s_gravity.inverse();
   kalman_matrix_.p_ = (Eigen::Matrix<double, 16, 16>::Identity(16, 16) -
                        k_gravity * h_gravity) *
                       kalman_matrix_.p_;
@@ -592,9 +604,9 @@ void ExtendedKalmanFilter::UpdateMag(const Eigen::Vector3d &mag_raw_data)
 
   double r_mag = sigma_meas_mag * sigma_meas_mag;
 
-  double s_mag = h_mag * kalman_matrix_.p_ * h_mag.transpose() + r_mag;
+  double s_mag = h_mag * kalman_matrix_.p_ * h_mag.adjoint() + r_mag;
   Eigen::Matrix<double, 16, 1> k_mag =
-      kalman_matrix_.p_ * h_mag.transpose() / s_mag;
+      kalman_matrix_.p_ * h_mag.adjoint() / s_mag;
 
   double d_z_mag = yaw_meas - yaw_hat;
 
@@ -613,7 +625,11 @@ void ExtendedKalmanFilter::UpdateDvl(const Eigen::Vector3d &dvl_raw_data)
     ATLAS_NOEXCEPT {
   // Avoid corrections from NaN replaced by zeros
   if (dvl_raw_data.norm() > 0) {
-    Eigen::Vector3d dvl_data = extra_states_.r_b_dvl.transpose() * dvl_raw_data;
+    static Eigen::Matrix<double, 3, 3> r_b_dvl_adj =
+        extra_states_.r_b_dvl.adjoint();
+    Eigen::Vector3d dvl_data = r_b_dvl_adj * dvl_raw_data;
+    ROS_INFO_STREAM(dvl_data(0) << "    " << dvl_data(1) << "    "
+                                << dvl_data(2));
     // Aiding Measurement Model
     auto skew_l_pd = atlas::SkewMatrix(l_pd);
     Eigen::Matrix<double, 3, 16> h_dvl = Eigen::Matrix<double, 3, 16>::Zero();
@@ -626,29 +642,32 @@ void ExtendedKalmanFilter::UpdateDvl(const Eigen::Vector3d &dvl_raw_data)
     h_dvl(2, 3) = extra_states_.r_n_b(2, 0);
     h_dvl(2, 4) = extra_states_.r_n_b(2, 1);
     h_dvl(2, 5) = extra_states_.r_n_b(2, 2);
-    h_dvl(0, 13) = skew_l_pd(0, 0);
-    h_dvl(0, 12) = skew_l_pd(0, 1);
+    h_dvl(0, 12) = skew_l_pd(0, 0);
+    h_dvl(0, 13) = skew_l_pd(0, 1);
     h_dvl(0, 14) = skew_l_pd(0, 2);
-    h_dvl(1, 13) = skew_l_pd(1, 0);
-    h_dvl(1, 14) = skew_l_pd(1, 1);
-    h_dvl(1, 15) = skew_l_pd(1, 2);
-    h_dvl(2, 14) = skew_l_pd(2, 0);
-    h_dvl(2, 14) = skew_l_pd(2, 1);
-    h_dvl(2, 15) = skew_l_pd(2, 2);
+    h_dvl(1, 12) = skew_l_pd(1, 0);
+    h_dvl(1, 13) = skew_l_pd(1, 1);
+    h_dvl(1, 14) = skew_l_pd(1, 2);
+    h_dvl(2, 12) = skew_l_pd(2, 0);
+    h_dvl(2, 13) = skew_l_pd(2, 1);
+    h_dvl(2, 14) = skew_l_pd(2, 2);
 
-    Eigen::Matrix3d r_dvl =
+    static Eigen::Matrix3d r_dvl =
         Eigen::Matrix<double, 1, 3>(sigma_meas_dvl_x, sigma_meas_dvl_y,
-                                    sigma_meas_dvl_z).asDiagonal();
-    auto k_dvl_tmp = h_dvl * kalman_matrix_.p_ * h_dvl.transpose() + r_dvl;
-    auto k_dvl = kalman_matrix_.p_ * h_dvl.transpose() * k_dvl_tmp.inverse();
+                                    sigma_meas_dvl_z)
+            .asDiagonal();
+    Eigen::Matrix<double, 3, 3> s_dvl =
+        h_dvl * kalman_matrix_.p_ * h_dvl.adjoint() + r_dvl;
+    Eigen::Matrix<double, 16, 3> k_dvl =
+        kalman_matrix_.p_ * h_dvl.adjoint() * s_dvl.inverse();
     Eigen::Matrix<double, 16, 16> eye16 = Eigen::Matrix<double, 16, 16>::Zero();
     kalman_matrix_.p_ = (eye16 - k_dvl * h_dvl) * kalman_matrix_.p_;
     // Prediction
-    auto dvl_hat =
+    Eigen::Vector3d dvl_hat =
         extra_states_.r_n_b * states_.vel_n + extra_states_.w_ib_b.cross(l_pd);
 
-    auto d_z_dvl = dvl_data - dvl_hat;
-    auto d_x_dvl = k_dvl * d_z_dvl;
+    Eigen::Vector3d d_z_dvl = dvl_data - dvl_hat;
+    Eigen::Matrix<double, 16, 1> d_x_dvl = k_dvl * d_z_dvl;
     UpdateStates(d_x_dvl);
   }
 }
@@ -696,10 +715,10 @@ void ExtendedKalmanFilter::UpdateBaro(const double &baro_meas) ATLAS_NOEXCEPT {
   // Apparently canno't do coefficient-wise operation on matrix with Eigen
   // And we need to convert to array first. Lot of type casting here...
   // see: http://eigen.tuxfamily.org/dox-devel/group__TutorialArrayClass.html
-  auto k_baro_tmp = h_baro * kalman_matrix_.p_ * h_baro.transpose();
+  auto k_baro_tmp = h_baro * kalman_matrix_.p_ * h_baro.adjoint();
   auto k_baro_tmp_arr = k_baro_tmp.array() + r_baro;
-  auto k_baro = kalman_matrix_.p_ * h_baro.transpose() *
-                k_baro_tmp_arr.matrix().inverse();
+  auto k_baro =
+      kalman_matrix_.p_ * h_baro.adjoint() * k_baro_tmp_arr.matrix().inverse();
   auto d_x = k_baro * d_z_baro;
   UpdateStates(d_x);
 }
@@ -737,10 +756,10 @@ void ExtendedKalmanFilter::UpdateStates(const Eigen::Matrix<double, 16, 1> &dx)
   states_.baro_bias += kalman_states_.d_baro_bias;
 
   Eigen::Matrix3d r_n_b_tmp = atlas::QuatToRot(states_.b);
-  Eigen::Matrix3d r_b_n_tmp = r_n_b_tmp.transpose();
+  Eigen::Matrix3d r_b_n_tmp = r_n_b_tmp.adjoint();
   Eigen::Matrix3d p_rho = atlas::SkewMatrix(kalman_states_.rho);
   extra_states_.r_b_n = (Eigen::Matrix3d::Identity(3, 3) + p_rho) * r_b_n_tmp;
-  extra_states_.r_n_b = extra_states_.r_b_n.transpose();
+  extra_states_.r_n_b = extra_states_.r_b_n.adjoint();
   states_.b = atlas::RotToQuat(extra_states_.r_n_b);
   extra_states_.euler = atlas::QuatToEuler(states_.b);
 }

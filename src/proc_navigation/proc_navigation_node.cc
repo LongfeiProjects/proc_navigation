@@ -25,10 +25,10 @@
  * along with S.O.N.I.A. software. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <std_msgs/String.h>
+#include "proc_navigation/proc_navigation_node.h"
 #include <geometry_msgs/Pose.h>
 #include <nav_msgs/Odometry.h>
-#include "proc_navigation/proc_navigation_node.h"
+#include <std_msgs/String.h>
 
 namespace proc_navigation {
 
@@ -42,13 +42,17 @@ ProcNavigationNode::ProcNavigationNode(const ros::NodeHandle &nh) ATLAS_NOEXCEPT
       ekf_conf_(nh_),
       baro_(
           std::make_shared<StateController<ExtendedKalmanFilter::BaroMessage>>(
-              nh_, ekf_conf_.baro_topic)),
+              nh_, ekf_conf_.baro_topic, ekf_conf_.simulation_active,
+              ekf_conf_.simulation_dt_baro)),
       imu_(std::make_shared<StateController<ExtendedKalmanFilter::ImuMessage>>(
-          nh_, ekf_conf_.imu_topic)),
+          nh_, ekf_conf_.imu_topic, ekf_conf_.simulation_active,
+          ekf_conf_.simulation_dt_imu)),
       mag_(std::make_shared<StateController<ExtendedKalmanFilter::MagMessage>>(
-          nh_, ekf_conf_.mag_topic)),
+          nh_, ekf_conf_.mag_topic, ekf_conf_.simulation_active,
+          ekf_conf_.simulation_dt_mag)),
       dvl_(std::make_shared<StateController<ExtendedKalmanFilter::DvlMessage>>(
-          nh_, ekf_conf_.dvl_topic)),
+          nh_, ekf_conf_.dvl_topic, ekf_conf_.simulation_active,
+          ekf_conf_.simulation_dt_dvl)),
       ekf_(baro_, imu_, mag_, dvl_, ekf_conf_),
       odom_pub_(nh_.advertise<nav_msgs::Odometry>("odom", 100)) {
   ekf_.Attach(*this);

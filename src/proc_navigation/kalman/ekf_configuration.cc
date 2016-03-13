@@ -34,7 +34,7 @@ namespace proc_navigation {
 //------------------------------------------------------------------------------
 //
 EkfConfiguration::EkfConfiguration(const ros::NodeHandle &nh) ATLAS_NOEXCEPT
-    : t_init(0.5f),
+    : t_init(0.5),
       manual_gravity(true),
       gravity(9.8),
       heading_shift_dvl(-45),
@@ -44,33 +44,33 @@ EkfConfiguration::EkfConfiguration(const ros::NodeHandle &nh) ATLAS_NOEXCEPT
       active_mag(true),
       active_dvl(true),
       active_baro(true),
-      sigma_meas_gravity(10.0f),
-      sigma_meas_mag(5.0f),
-      sigma_meas_dvl_x(3.0f),
-      sigma_meas_dvl_y(3.0f),
-      sigma_meas_dvl_z(5.0f),
-      sigma_meas_baro(10.0f),
-      sigma0_pos_x(0.01f),
-      sigma0_pos_y(0.01f),
-      sigma0_pos_z(0.01f),
-      sigma0_vel_x(0.01f),
-      sigma0_vel_y(0.01f),
-      sigma0_vel_z(0.01f),
-      sigma0_rho_x(0.01f),
-      sigma0_rho_y(0.01f),
-      sigma0_rho_z(0.01f),
-      sigma0_bias_acc(0.001f),
-      sigma0_bias_gyr(0.001f),
-      sigma0_bias_baro(0.001f),
-      sigma_meas_acc(10.f),
-      sigma_meas_gyr(0.01f),
-      sigma_walk_bias_acc(0.001f),
-      sigma_walk_bias_gyr(0.001f),
-      sigma_walk_bias_baro(0.001f),
+      sigma_meas_gravity(15.0),
+      sigma_meas_mag(10.0),
+      sigma_meas_dvl_x(10.0),
+      sigma_meas_dvl_y(10.0),
+      sigma_meas_dvl_z(20.0),
+      sigma_meas_baro(40.0),
+      sigma0_pos_x(0.01),
+      sigma0_pos_y(0.01),
+      sigma0_pos_z(0.01),
+      sigma0_vel_x(0.01),
+      sigma0_vel_y(0.01),
+      sigma0_vel_z(0.01),
+      sigma0_rho_x(0.01),
+      sigma0_rho_y(0.01),
+      sigma0_rho_z(0.01),
+      sigma0_bias_acc(0.1),
+      sigma0_bias_gyr(0.001),
+      sigma0_bias_baro(0.001),
+      sigma_meas_acc(15.),
+      sigma_meas_gyr(0.01),
+      sigma_walk_bias_acc(0.001),
+      sigma_walk_bias_gyr(0.001),
+      sigma_walk_bias_baro(0.001),
       l_pd({0.0, 0.0, 0.15}),
       l_pp({0.0, -0.10f, -0.5f}),
-      crit_station_acc(1.0f),
-      crit_station_norm(1.0f),
+      crit_station_acc(1.0),
+      crit_station_norm(1.0),
       imu_sign_x(1),
       imu_sign_y(-1),
       imu_sign_z(-1),
@@ -81,10 +81,10 @@ EkfConfiguration::EkfConfiguration(const ros::NodeHandle &nh) ATLAS_NOEXCEPT
       dvl_topic("/provider_dvl/twist"),
       imu_topic("/provider_imu/imu"),
       mag_topic("/provider_imu/magnetic_field"),
-      simulation_active(false),
-      simuation_dt_imu(0.01),
+      simulation_active(true),
+      simulation_dt_imu(0.01),
       simulation_dt_mag(0.01),
-      simulation_dt_dvl(0.2857142857142857f),
+      simulation_dt_dvl(0.2857142857142857),
       simulation_dt_baro(0.072),
       nh_(nh) {
   DeserializeConfiguration();
@@ -137,10 +137,10 @@ EkfConfiguration::EkfConfiguration(const EkfConfiguration &rhs) ATLAS_NOEXCEPT {
   mag_sign_y = rhs.mag_sign_y;
   mag_sign_z = rhs.mag_sign_z;
   simulation_active = rhs.simulation_active;
-      simuation_dt_imu = rhs.simuation_dt_imu;
-      simulation_dt_mag = rhs.simulation_dt_mag;
-      simulation_dt_dvl = rhs.simulation_dt_dvl;
-      simulation_dt_baro = rhs.simulation_dt_baro;
+  simulation_dt_imu = rhs.simulation_dt_imu;
+  simulation_dt_mag = rhs.simulation_dt_mag;
+  simulation_dt_dvl = rhs.simulation_dt_dvl;
+  simulation_dt_baro = rhs.simulation_dt_baro;
   nh_ = rhs.nh_;
 }
 
@@ -191,7 +191,7 @@ EkfConfiguration::EkfConfiguration(EkfConfiguration &&rhs) ATLAS_NOEXCEPT {
   mag_sign_y = rhs.mag_sign_y;
   mag_sign_z = rhs.mag_sign_z;
   simulation_active = rhs.simulation_active;
-  simuation_dt_imu = rhs.simuation_dt_imu;
+  simulation_dt_imu = rhs.simulation_dt_imu;
   simulation_dt_mag = rhs.simulation_dt_mag;
   simulation_dt_dvl = rhs.simulation_dt_dvl;
   simulation_dt_baro = rhs.simulation_dt_baro;
@@ -251,18 +251,18 @@ void EkfConfiguration::DeserializeConfiguration() ATLAS_NOEXCEPT {
   FindParameter("/device_sign/mag/z", mag_sign_z);
 
   FindParameter("/proc_navigation/simulation/active", simulation_active);
-  FindParameter("/proc_navigation/simulation/dt_imu", simuation_dt_imu);
+  FindParameter("/proc_navigation/simulation/dt_imu", simulation_dt_imu);
   FindParameter("/proc_navigation/simulation/dt_mag", simulation_dt_mag);
   FindParameter("/proc_navigation/simulation/dt_dvl", simulation_dt_dvl);
   FindParameter("/proc_navigation/simulation/dt_baro", simulation_dt_baro);
 
   // Getting the matrix for Eigen compatible types
   std::vector<double> l_pd_tmp({static_cast<double>(l_pd(0)),
-                               static_cast<double>(l_pd(1)),
-                               static_cast<double>(l_pd(2))});
+                                static_cast<double>(l_pd(1)),
+                                static_cast<double>(l_pd(2))});
   std::vector<double> l_pp_tmp({static_cast<double>(l_pp(0)),
-                               static_cast<double>(l_pp(1)),
-                               static_cast<double>(l_pp(2))});
+                                static_cast<double>(l_pp(1)),
+                                static_cast<double>(l_pp(2))});
   FindParameter("/ekf/l_pd", l_pd_tmp);
   FindParameter("/ekf/l_pp", l_pp_tmp);
   if (l_pd_tmp.size() != 3 || l_pp_tmp.size() != 3) {

@@ -27,11 +27,11 @@
 #ifndef PROC_NAVIGATION_KALMAN_EKF_CONFIGURATION_H_
 #define PROC_NAVIGATION_KALMAN_EKF_CONFIGURATION_H_
 
-#include <memory>
-#include <vector>
+#include <lib_atlas/macros.h>
 #include <ros/ros.h>
 #include <eigen3/Eigen/Eigen>
-#include <lib_atlas/macros.h>
+#include <memory>
+#include <vector>
 
 namespace proc_navigation {
 
@@ -117,7 +117,7 @@ class EkfConfiguration {
 
   // Members for the simulation
   bool simulation_active;
-  double simuation_dt_imu;
+  double simulation_dt_imu;
   double simulation_dt_mag;
   double simulation_dt_dvl;
   double simulation_dt_baro;

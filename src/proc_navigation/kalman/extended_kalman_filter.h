@@ -27,18 +27,18 @@
 #ifndef PROC_NAVIGATION_KALMAN_EXTENDED_KALMAN_FILTER_H_
 #define PROC_NAVIGATION_KALMAN_EXTENDED_KALMAN_FILTER_H_
 
-#include <memory>
-#include <vector>
-#include <std_msgs/Float64.h>
 #include <geometry_msgs/TwistWithCovarianceStamped.h>
+#include <lib_atlas/macros.h>
+#include <lib_atlas/pattern/runnable.h>
+#include <lib_atlas/pattern/subject.h>
+#include <lib_atlas/sys/timer.h>
+#include <sensor_msgs/FluidPressure.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/MagneticField.h>
-#include <sensor_msgs/FluidPressure.h>
+#include <std_msgs/Float64.h>
 #include <eigen3/Eigen/Eigen>
-#include <lib_atlas/macros.h>
-#include <lib_atlas/pattern/subject.h>
-#include <lib_atlas/pattern/runnable.h>
-#include <lib_atlas/sys/timer.h>
+#include <memory>
+#include <vector>
 #include "proc_navigation/kalman/ekf_configuration.h"
 #include "proc_navigation/kalman/state_controller.h"
 
@@ -56,7 +56,7 @@ class ExtendedKalmanFilter : public atlas::Runnable,
   using PtrList = std::vector<ExtendedKalmanFilter::Ptr>;
   using ConstPtrList = std::vector<ExtendedKalmanFilter::ConstPtr>;
 
-  //using BaroMessage = sensor_msgs::FluidPressure;
+  // using BaroMessage = sensor_msgs::FluidPressure;
   using BaroMessage = std_msgs::Float64;
   using DvlMessage = geometry_msgs::TwistWithCovarianceStamped;
   using ImuMessage = sensor_msgs::Imu;
@@ -223,6 +223,9 @@ class ExtendedKalmanFilter : public atlas::Runnable,
   double ge_;
 
   Eigen::Vector3d g_n_;
+
+  // For debugging purpose, to delete
+  int i_ = 0;
 };
 
 //==============================================================================

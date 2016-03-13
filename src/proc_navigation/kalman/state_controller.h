@@ -27,15 +27,15 @@
 #ifndef PROC_NAVIGATION_CONTROLLER_STATE_CONTROLLER_H_
 #define PROC_NAVIGATION_CONTROLLER_STATE_CONTROLLER_H_
 
-#include <memory>
-#include <vector>
-#include <mutex>
-#include <atomic>
 #include <lib_atlas/macros.h>
-#include <lib_atlas/pattern/subject.h>
 #include <lib_atlas/pattern/observer.h>
+#include <lib_atlas/pattern/subject.h>
 #include <lib_atlas/sys/timer.h>
 #include <ros/node_handle.h>
+#include <atomic>
+#include <memory>
+#include <mutex>
+#include <vector>
 
 namespace proc_navigation {
 
@@ -71,7 +71,9 @@ class StateController {
    * (NOT the topic name itself)
    */
   explicit StateController(const ros::NodeHandle &,
-                           const std::string &conf_name) ATLAS_NOEXCEPT;
+                           const std::string &conf_name,
+                           bool simulation = false,
+                           double sim_dt = 0) ATLAS_NOEXCEPT;
 
   virtual ~StateController() ATLAS_NOEXCEPT;
 
@@ -84,21 +86,28 @@ class StateController {
 
   void Callback(const DataType &msg) ATLAS_NOEXCEPT;
 
+  double GetDeltaTime() const ATLAS_NOEXCEPT;
+
+ private:
+  //============================================================================
+  // P R I V A T E   M E T H O D S
+
   /**
    * The delta time is the difference of the stamp in the header of two
    * consecutive packages. It highly depend on the implementation of the
    * package that sends the message and this may not be functionnal.
    */
-  double GetDeltaTime() const ATLAS_NOEXCEPT;
+  double GetStampedDeltaTime() const ATLAS_NOEXCEPT;
+
+  double GetSimulatedDeltaTime() const ATLAS_NOEXCEPT;
 
   /**
    * The real delta time is calculated with a timer in this node.
    * Every time we receive a message, the delta time is calculated and the timer
    * is being resetted.
    */
-  double GetRealDeltaTime() const ATLAS_NOEXCEPT;
+  double GetTimedDeltaTime() const ATLAS_NOEXCEPT;
 
- private:
   //============================================================================
   // P R I V A T E   M E M B E R S
 
@@ -108,14 +117,16 @@ class StateController {
   Tp_ last_data_;
 
   std::atomic<bool> new_data_ready_;
+  std::atomic<bool> is_simulated_time_;
 
   /**
    * The timer that will be used to get the delta time between two IMU measures
    */
   atlas::MicroTimer timer_;
 
-  double real_dt_;
-  double dt_;
+  double timed_dt_;
+  double stamped_dt_;
+  double sim_dt_;
 
   uint64_t message_count_;
 

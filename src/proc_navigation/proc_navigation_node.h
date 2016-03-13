@@ -28,12 +28,12 @@
 #ifndef PROC_NAVIGATION_PROC_NAVIGATION_NODE_H_
 #define PROC_NAVIGATION_PROC_NAVIGATION_NODE_H_
 
-#include <memory>
-#include <vector>
 #include <lib_atlas/macros.h>
-#include <ros/ros.h>
 #include <proc_navigation/kalman/ekf_configuration.h>
 #include <proc_navigation/kalman/extended_kalman_filter.h>
+#include <ros/ros.h>
+#include <memory>
+#include <vector>
 
 namespace proc_navigation {
 

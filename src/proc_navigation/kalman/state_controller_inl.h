@@ -39,14 +39,17 @@ namespace proc_navigation {
 //
 template <class Tp_>
 ATLAS_INLINE StateController<Tp_>::StateController(
-    const ros::NodeHandle &nh, const std::string &topic_name) ATLAS_NOEXCEPT
+    const ros::NodeHandle &nh, const std::string &topic_name, bool simulation,
+    double sim_dt) ATLAS_NOEXCEPT
     : nh_(nh),
       data_mutex_(),
       last_data_(),
       new_data_ready_(false),
+      is_simulated_time_(simulation),
       timer_(),
-      real_dt_(0),
-      dt_(0),
+      timed_dt_(0),
+      sim_dt_(0),
+      stamped_dt_(0),
       message_count_(0),
       subscriber_(nh_.subscribe(topic_name, 100,
                                 &StateController<Tp_>::Callback, this)) {
@@ -66,18 +69,23 @@ ATLAS_INLINE StateController<Tp_>::~StateController() ATLAS_NOEXCEPT {}
 template <class Tp_>
 ATLAS_INLINE void StateController<Tp_>::Callback(const DataType &msg)
     ATLAS_NOEXCEPT {
+  if (new_data_ready_) {
+    ROS_WARN(
+        "Buffer overflow in the state controller, a data has been skipped");
+  }
   new_data_ready_ = true;
   ++message_count_;
   std::lock_guard<std::mutex> guard(data_mutex_);
 
-  if(message_count_ > 1) {
+  if (message_count_ > 1) {
     static const auto us = std::pow(10, -6);
-    dt_ = ros::Time(msg.header.stamp).toSec() - ros::Time(last_data_.header.stamp).toSec();
-    real_dt_ = timer_.MicroSeconds() * us;
+    stamped_dt_ = ros::Time(msg.header.stamp).toSec() -
+                  ros::Time(last_data_.header.stamp).toSec();
+    timed_dt_ = timer_.MicroSeconds() * us;
     timer_.Reset();
   } else {
-    dt_ = 0;
-    real_dt_ = 0;
+    stamped_dt_ = 0;
+    timed_dt_ = 0;
     timer_.Reset();
   }
   last_data_ = msg;
@@ -86,8 +94,8 @@ ATLAS_INLINE void StateController<Tp_>::Callback(const DataType &msg)
 //------------------------------------------------------------------------------
 //
 template <>
-ATLAS_INLINE void StateController<std_msgs::Float64>::Callback(const DataType &msg)
-ATLAS_NOEXCEPT {
+ATLAS_INLINE void StateController<std_msgs::Float64>::Callback(
+    const DataType &msg) ATLAS_NOEXCEPT {
   // This is a temporary method for the barometer because the double64 message
   // does not have any header.
   // Anyway we don't use the dt of the baro...
@@ -95,7 +103,7 @@ ATLAS_NOEXCEPT {
   new_data_ready_ = true;
   ++message_count_;
   std::lock_guard<std::mutex> guard(data_mutex_);
-  real_dt_ = timer_.MicroSeconds() * std::pow(10, -6);
+  timed_dt_ = timer_.MicroSeconds() * std::pow(10, -6);
   timer_.Reset();
   last_data_ = msg;
 }
@@ -119,17 +127,40 @@ ATLAS_INLINE bool StateController<Tp_>::IsNewDataReady() const ATLAS_NOEXCEPT {
 //------------------------------------------------------------------------------
 //
 template <class Tp_>
-ATLAS_INLINE double StateController<Tp_>::GetRealDeltaTime() const ATLAS_NOEXCEPT {
+ATLAS_INLINE double StateController<Tp_>::GetDeltaTime() const ATLAS_NOEXCEPT {
   std::lock_guard<std::mutex> guard(data_mutex_);
-  return real_dt_;
+  if (is_simulated_time_) {
+    return GetSimulatedDeltaTime();
+  } else {
+    return GetStampedDeltaTime();
+  }
 }
 
 //------------------------------------------------------------------------------
 //
 template <class Tp_>
-ATLAS_INLINE double StateController<Tp_>::GetDeltaTime() const ATLAS_NOEXCEPT {
+ATLAS_INLINE double StateController<Tp_>::GetTimedDeltaTime() const
+    ATLAS_NOEXCEPT {
   std::lock_guard<std::mutex> guard(data_mutex_);
-  return dt_;
+  return timed_dt_;
+}
+
+//------------------------------------------------------------------------------
+//
+template <class Tp_>
+ATLAS_INLINE double StateController<Tp_>::GetSimulatedDeltaTime() const
+    ATLAS_NOEXCEPT {
+  std::lock_guard<std::mutex> guard(data_mutex_);
+  return sim_dt_;
+}
+
+//------------------------------------------------------------------------------
+//
+template <class Tp_>
+ATLAS_INLINE double StateController<Tp_>::GetStampedDeltaTime() const
+    ATLAS_NOEXCEPT {
+  std::lock_guard<std::mutex> guard(data_mutex_);
+  return stamped_dt_;
 }
 
 }  // namespace proc_navigation
