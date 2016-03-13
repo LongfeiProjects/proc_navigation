@@ -48,7 +48,7 @@ ATLAS_INLINE StateController<Tp_>::StateController(
       is_simulated_time_(simulation),
       timer_(),
       timed_dt_(0),
-      sim_dt_(0),
+      sim_dt_(sim_dt),
       stamped_dt_(0),
       message_count_(0),
       subscriber_(nh_.subscribe(topic_name, 100,
@@ -128,7 +128,6 @@ ATLAS_INLINE bool StateController<Tp_>::IsNewDataReady() const ATLAS_NOEXCEPT {
 //
 template <class Tp_>
 ATLAS_INLINE double StateController<Tp_>::GetDeltaTime() const ATLAS_NOEXCEPT {
-  std::lock_guard<std::mutex> guard(data_mutex_);
   if (is_simulated_time_) {
     return GetSimulatedDeltaTime();
   } else {

@@ -302,8 +302,7 @@ void ExtendedKalmanFilter::Run() {
     if (imu_->IsNewDataReady()) {
       ++i_;
       auto imu_msg = imu_->GetLastData();
-      double dt = 0;
-      dt = imu_->GetDeltaTime();
+      double dt = imu_->GetDeltaTime();
       imu_timer_.Reset();
       imu_timer_.Start();
 
