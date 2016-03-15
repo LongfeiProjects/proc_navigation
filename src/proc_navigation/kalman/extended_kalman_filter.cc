@@ -51,7 +51,6 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(
                                                    imu_timer_(),
                                                    mag_timer_(),
                                                    dvl_timer_(),
-                                                   init_timer_(),
                                                    states_(),
                                                    kalman_states_(),
                                                    extra_states_(),
@@ -83,54 +82,60 @@ void ExtendedKalmanFilter::Initialize() {
   std::array<std::vector<double>, 3> vel;
   std::vector<double> pressure;
 
-  init_timer_.Start();
-  double real_stamp_imu = 0;
-  double real_stamp_dvl = 0;
-  double real_stamp_baro = 0;
-  double real_stamp_mag = 0;
+  bool real_stamped_ok_imu = false;
+  bool real_stamped_ok_dvl = !active_dvl;
+  bool real_stamped_ok_mag = !active_mag;
+  bool real_stamped_ok_baro = !active_baro;
 
-  while ((init_timer_.MicroSeconds() * std::pow(10, -6) < t_init) &&
-         (real_stamp_imu < t_init) && (real_stamp_dvl < t_init) &&
-         (real_stamp_baro < t_init) && (real_stamp_mag < t_init)) {
+  while (!(real_stamped_ok_imu && real_stamped_ok_dvl && real_stamped_ok_mag &&
+           real_stamped_ok_baro)) {
     if (imu_->IsNewDataReady()) {
-      real_stamp_mag += imu_->GetDeltaTime();
-      if (real_stamp_imu < t_init) {
-        auto imu_msg = imu_->GetLastData();
+      auto imu_msg = imu_->GetLastDataIfDtIn(t_init);
+      if (imu_msg != nullptr) {
         CorrectNaN(imu_msg);
-        std::get<0>(g).push_back(imu_msg.linear_acceleration.x);
-        std::get<1>(g).push_back(imu_msg.linear_acceleration.y);
-        std::get<2>(g).push_back(imu_msg.linear_acceleration.z);
+        std::get<0>(g).push_back(imu_msg->linear_acceleration.x);
+        std::get<1>(g).push_back(imu_msg->linear_acceleration.y);
+        std::get<2>(g).push_back(imu_msg->linear_acceleration.z);
+        real_stamped_ok_imu = false;
+      } else {
+        real_stamped_ok_imu = true;
       }
     }
 
-    if (mag_->IsNewDataReady() && active_mag) {
-      real_stamp_mag += mag_->GetDeltaTime();
-      if (real_stamp_mag < t_init) {
-        auto mag_msg = mag_->GetLastData();
+    if (mag_->IsNewDataReady()) {
+      auto mag_msg = mag_->GetLastDataIfDtIn(t_init);
+      if (mag_msg != nullptr) {
         CorrectNaN(mag_msg);
-        std::get<0>(m).push_back(mag_msg.magnetic_field.x);
-        std::get<1>(m).push_back(mag_msg.magnetic_field.y);
-        std::get<2>(m).push_back(mag_msg.magnetic_field.z);
+        std::get<0>(m).push_back(mag_msg->magnetic_field.x);
+        std::get<1>(m).push_back(mag_msg->magnetic_field.y);
+        std::get<2>(m).push_back(mag_msg->magnetic_field.z);
+        real_stamped_ok_mag = false;
+      } else {
+        real_stamped_ok_mag = true;
       }
     }
 
     if (dvl_->IsNewDataReady() && active_dvl) {
-      real_stamp_dvl += dvl_->GetDeltaTime();
-      if (real_stamp_dvl < t_init) {
-        auto dvl_msg = dvl_->GetLastData();
+      auto dvl_msg = dvl_->GetLastDataIfDtIn(t_init);
+      if (dvl_msg != nullptr) {
         CorrectNaN(dvl_msg);
-        std::get<0>(vel).push_back(dvl_msg.twist.twist.linear.x);
-        std::get<1>(vel).push_back(dvl_msg.twist.twist.linear.y);
-        std::get<2>(vel).push_back(dvl_msg.twist.twist.linear.z);
+        std::get<0>(vel).push_back(dvl_msg->twist.twist.linear.x);
+        std::get<1>(vel).push_back(dvl_msg->twist.twist.linear.y);
+        std::get<2>(vel).push_back(dvl_msg->twist.twist.linear.z);
+        real_stamped_ok_dvl = false;
+      } else {
+        real_stamped_ok_dvl = true;
       }
     }
 
     if (baro_->IsNewDataReady() && active_baro) {
-      real_stamp_baro += baro_->GetDeltaTime();
-      if (real_stamp_baro < t_init) {
-        auto baro_msg = baro_->GetLastData();
-        pressure.push_back(baro_msg.data);
+      auto baro_msg = baro_->GetLastDataIfDtIn(t_init);
+      if (baro_msg != nullptr) {
+        pressure.push_back(baro_msg->data);
         CorrectNaN(baro_msg);
+        real_stamped_ok_baro = false;
+      } else {
+        real_stamped_ok_baro = true;
       }
     }
   }
@@ -158,17 +163,17 @@ void ExtendedKalmanFilter::Initialize() {
     depth0 = -t_s / k_t * (std::pow(p_b / p_s, -R * k_t / g0) - 1) + h_s;
   }
 
-  if (depth0 > 0) {
-    extra_states_.r_b_dvl(0, 0) = std::cos(heading_shift_dvl);
-    extra_states_.r_b_dvl(0, 1) = -std::sin(heading_shift_dvl);
-    extra_states_.r_b_dvl(0, 2) = 0;
-    extra_states_.r_b_dvl(1, 0) = std::sin(heading_shift_dvl);
-    extra_states_.r_b_dvl(1, 1) = std::cos(heading_shift_dvl);
-    extra_states_.r_b_dvl(1, 2) = 0;
-    extra_states_.r_b_dvl(2, 0) = 0;
-    extra_states_.r_b_dvl(2, 1) = 0;
-    extra_states_.r_b_dvl(2, 2) = 1;
+  extra_states_.r_b_dvl(0, 0) = std::cos(heading_shift_dvl);
+  extra_states_.r_b_dvl(0, 1) = -std::sin(heading_shift_dvl);
+  extra_states_.r_b_dvl(0, 2) = 0;
+  extra_states_.r_b_dvl(1, 0) = std::sin(heading_shift_dvl);
+  extra_states_.r_b_dvl(1, 1) = std::cos(heading_shift_dvl);
+  extra_states_.r_b_dvl(1, 2) = 0;
+  extra_states_.r_b_dvl(2, 0) = 0;
+  extra_states_.r_b_dvl(2, 1) = 0;
+  extra_states_.r_b_dvl(2, 2) = 1;
 
+  if (depth0 > 0) {
     auto vel_dvl =
         Eigen::Vector3d(std::get<0>(vel).back(), std::get<1>(vel).back(),
                         std::get<2>(vel).back());
@@ -307,16 +312,16 @@ void ExtendedKalmanFilter::Run() {
       imu_timer_.Start();
 
       Eigen::Vector3d acc_raw_data;
-      acc_raw_data(0) = imu_sign_x * imu_msg.linear_acceleration.x;
-      acc_raw_data(1) = imu_sign_y * imu_msg.linear_acceleration.y;
-      acc_raw_data(2) = imu_sign_z * imu_msg.linear_acceleration.z;
+      acc_raw_data(0) = imu_sign_x * imu_msg->linear_acceleration.x;
+      acc_raw_data(1) = imu_sign_y * imu_msg->linear_acceleration.y;
+      acc_raw_data(2) = imu_sign_z * imu_msg->linear_acceleration.z;
 
       Eigen::Vector3d f_b = acc_raw_data - states_.acc_bias;
 
       Eigen::Vector3d gyr_raw_data;
-      gyr_raw_data(0) = imu_sign_x * imu_msg.angular_velocity.x;
-      gyr_raw_data(1) = imu_sign_y * imu_msg.angular_velocity.y;
-      gyr_raw_data(2) = imu_sign_z * imu_msg.angular_velocity.z;
+      gyr_raw_data(0) = imu_sign_x * imu_msg->angular_velocity.x;
+      gyr_raw_data(1) = imu_sign_y * imu_msg->angular_velocity.y;
+      gyr_raw_data(2) = imu_sign_z * imu_msg->angular_velocity.z;
 
       extra_states_.w_ib_b = gyr_raw_data - states_.gyro_bias;
       criterions_.ufw = std::pow(extra_states_.w_ib_b.norm(), 2);
@@ -358,9 +363,9 @@ void ExtendedKalmanFilter::Run() {
         mag_timer_.Reset();
         mag_timer_.Start();
         Eigen::Vector3d mag_raw_data;
-        mag_raw_data(0) = mag_msg.magnetic_field.x;
-        mag_raw_data(1) = mag_msg.magnetic_field.y;
-        mag_raw_data(2) = mag_msg.magnetic_field.z;
+        mag_raw_data(0) = mag_msg->magnetic_field.x;
+        mag_raw_data(1) = mag_msg->magnetic_field.y;
+        mag_raw_data(2) = mag_msg->magnetic_field.z;
         UpdateMag(mag_raw_data);
         mag_timer_.Pause();
       }
@@ -370,9 +375,9 @@ void ExtendedKalmanFilter::Run() {
         dvl_timer_.Reset();
         dvl_timer_.Start();
         Eigen::Vector3d dvl_raw_data;
-        dvl_raw_data(0) = dvl_msg.twist.twist.linear.x;
-        dvl_raw_data(1) = dvl_msg.twist.twist.linear.y;
-        dvl_raw_data(2) = dvl_msg.twist.twist.linear.z;
+        dvl_raw_data(0) = dvl_msg->twist.twist.linear.x;
+        dvl_raw_data(1) = dvl_msg->twist.twist.linear.y;
+        dvl_raw_data(2) = dvl_msg->twist.twist.linear.z;
         UpdateDvl(dvl_raw_data);
         dvl_timer_.Pause();
       }
@@ -380,7 +385,7 @@ void ExtendedKalmanFilter::Run() {
       if (baro_->IsNewDataReady() && active_baro) {
         baro_timer_.Reset();
         baro_timer_.Start();
-        UpdateBaro(baro_->GetLastData().data);
+        UpdateBaro(baro_->GetLastData()->data);
         baro_timer_.Pause();
       }
 
@@ -765,42 +770,46 @@ void ExtendedKalmanFilter::UpdateStates(const Eigen::Matrix<double, 16, 1> &dx)
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::CorrectNaN(DvlMessage &msg) const ATLAS_NOEXCEPT {
-  ReplaceNaNByZero(msg.twist.twist.angular.x, "twist.angular.x");
-  ReplaceNaNByZero(msg.twist.twist.angular.y, "twist.angular.y");
-  ReplaceNaNByZero(msg.twist.twist.angular.z, "twist.angular.z");
-  ReplaceNaNByZero(msg.twist.twist.linear.x, "twist.linear.x");
-  ReplaceNaNByZero(msg.twist.twist.linear.y, "twist.linear.y");
-  ReplaceNaNByZero(msg.twist.twist.linear.z, "twist.linear.z");
+void ExtendedKalmanFilter::CorrectNaN(DvlMessage::Ptr msg) const
+    ATLAS_NOEXCEPT {
+  ReplaceNaNByZero(msg->twist.twist.angular.x, "twist.angular.x");
+  ReplaceNaNByZero(msg->twist.twist.angular.y, "twist.angular.y");
+  ReplaceNaNByZero(msg->twist.twist.angular.z, "twist.angular.z");
+  ReplaceNaNByZero(msg->twist.twist.linear.x, "twist.linear.x");
+  ReplaceNaNByZero(msg->twist.twist.linear.y, "twist.linear.y");
+  ReplaceNaNByZero(msg->twist.twist.linear.z, "twist.linear.z");
 }
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::CorrectNaN(ImuMessage &msg) const ATLAS_NOEXCEPT {
-  ReplaceNaNByZero(msg.orientation.w, "orientation.w");
-  ReplaceNaNByZero(msg.orientation.x, "orientation.x");
-  ReplaceNaNByZero(msg.orientation.y, "orientation.y");
-  ReplaceNaNByZero(msg.orientation.z, "orientation.z");
-  ReplaceNaNByZero(msg.angular_velocity.x, "angular_velocity.x");
-  ReplaceNaNByZero(msg.angular_velocity.y, "angular_velocity.y");
-  ReplaceNaNByZero(msg.angular_velocity.z, "angular_velocity.z");
-  ReplaceNaNByZero(msg.linear_acceleration.x, "angular_velocity.x");
-  ReplaceNaNByZero(msg.linear_acceleration.y, "linear_acceleration.y");
-  ReplaceNaNByZero(msg.linear_acceleration.z, "linear_acceleration.z");
+void ExtendedKalmanFilter::CorrectNaN(ImuMessage::Ptr msg) const
+    ATLAS_NOEXCEPT {
+  ReplaceNaNByZero(msg->orientation.w, "orientation.w");
+  ReplaceNaNByZero(msg->orientation.x, "orientation.x");
+  ReplaceNaNByZero(msg->orientation.y, "orientation.y");
+  ReplaceNaNByZero(msg->orientation.z, "orientation.z");
+  ReplaceNaNByZero(msg->angular_velocity.x, "angular_velocity.x");
+  ReplaceNaNByZero(msg->angular_velocity.y, "angular_velocity.y");
+  ReplaceNaNByZero(msg->angular_velocity.z, "angular_velocity.z");
+  ReplaceNaNByZero(msg->linear_acceleration.x, "angular_velocity.x");
+  ReplaceNaNByZero(msg->linear_acceleration.y, "linear_acceleration.y");
+  ReplaceNaNByZero(msg->linear_acceleration.z, "linear_acceleration.z");
 }
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::CorrectNaN(MagMessage &msg) const ATLAS_NOEXCEPT {
-  ReplaceNaNByZero(msg.magnetic_field.x, "magnetic_field.x");
-  ReplaceNaNByZero(msg.magnetic_field.y, "magnetic_field.y");
-  ReplaceNaNByZero(msg.magnetic_field.z, "magnetic_field.z");
+void ExtendedKalmanFilter::CorrectNaN(MagMessage::Ptr msg) const
+    ATLAS_NOEXCEPT {
+  ReplaceNaNByZero(msg->magnetic_field.x, "magnetic_field.x");
+  ReplaceNaNByZero(msg->magnetic_field.y, "magnetic_field.y");
+  ReplaceNaNByZero(msg->magnetic_field.z, "magnetic_field.z");
 }
 
 //------------------------------------------------------------------------------
 //
-void ExtendedKalmanFilter::CorrectNaN(BaroMessage &msg) const ATLAS_NOEXCEPT {
-  ReplaceNaNByZero(msg.data, "data");
+void ExtendedKalmanFilter::CorrectNaN(BaroMessage::Ptr msg) const
+    ATLAS_NOEXCEPT {
+  ReplaceNaNByZero(msg->data, "data");
 }
 
 }  // namespace proc_navigation

@@ -163,10 +163,10 @@ class ExtendedKalmanFilter : public atlas::Runnable,
 
   void UpdateStates(const Eigen::Matrix<double, 16, 1> &dx) ATLAS_NOEXCEPT;
 
-  void CorrectNaN(DvlMessage &msg) const ATLAS_NOEXCEPT;
-  void CorrectNaN(ImuMessage &msg) const ATLAS_NOEXCEPT;
-  void CorrectNaN(MagMessage &msg) const ATLAS_NOEXCEPT;
-  void CorrectNaN(BaroMessage &msg) const ATLAS_NOEXCEPT;
+  void CorrectNaN(DvlMessage::Ptr msg) const ATLAS_NOEXCEPT;
+  void CorrectNaN(ImuMessage::Ptr msg) const ATLAS_NOEXCEPT;
+  void CorrectNaN(MagMessage::Ptr msg) const ATLAS_NOEXCEPT;
+  void CorrectNaN(BaroMessage::Ptr msg) const ATLAS_NOEXCEPT;
 
   template <class Tp_>
   void ReplaceNaNByZero(Tp_ &, const std::string &) const ATLAS_NOEXCEPT;
@@ -192,15 +192,6 @@ class ExtendedKalmanFilter : public atlas::Runnable,
   atlas::MicroTimer imu_timer_;
   atlas::MicroTimer mag_timer_;
   atlas::MicroTimer dvl_timer_;
-
-  /**
-   * This is the timer that run during the init time.
-   * The value of this timer is going to be compared to the configuration init
-   * time value.
-   * When the timer hits the init time, the processing of the parallel thread
-   * starts.
-   */
-  atlas::MicroTimer init_timer_;
 
   /**
    * The initial state and states of the kalman filter.

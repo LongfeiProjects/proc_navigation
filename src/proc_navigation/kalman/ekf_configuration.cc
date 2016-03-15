@@ -81,7 +81,7 @@ EkfConfiguration::EkfConfiguration(const ros::NodeHandle &nh) ATLAS_NOEXCEPT
       dvl_topic("/provider_dvl/twist"),
       imu_topic("/provider_imu/imu"),
       mag_topic("/provider_imu/magnetic_field"),
-      simulation_active(true),
+      simulation_active(false),
       simulation_dt_imu(0.01),
       simulation_dt_mag(0.01),
       simulation_dt_dvl(0.2857142857142857),

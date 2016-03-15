@@ -35,6 +35,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <queue>
 #include <vector>
 
 namespace proc_navigation {
@@ -61,7 +62,9 @@ class StateController {
   using PtrList = std::vector<StateController::Ptr>;
   using ConstPtrList = std::vector<StateController::ConstPtr>;
 
-  using DataType = Tp_;
+  using DataType = typename Tp_::Ptr;
+
+  static const uint32_t BUFFER_SIZE;
 
   //============================================================================
   // P U B L I C   C / D T O R S
@@ -82,11 +85,20 @@ class StateController {
 
   bool IsNewDataReady() const ATLAS_NOEXCEPT;
 
-  Tp_ GetLastData() ATLAS_NOEXCEPT;
+  DataType GetLastData();
+
+  DataType GetLastDataIfDtIn(double dt);
 
   void Callback(const DataType &msg) ATLAS_NOEXCEPT;
 
   double GetDeltaTime() const ATLAS_NOEXCEPT;
+
+  /**
+   * Return the delta time between the last message received and the first one.
+   */
+  double GetTimeForLast() const ATLAS_NOEXCEPT;
+  double GetTimeForCurrent() const ATLAS_NOEXCEPT;
+  double GetTimeForNext() const ATLAS_NOEXCEPT;
 
  private:
   //============================================================================
@@ -101,30 +113,21 @@ class StateController {
 
   double GetSimulatedDeltaTime() const ATLAS_NOEXCEPT;
 
-  /**
-   * The real delta time is calculated with a timer in this node.
-   * Every time we receive a message, the delta time is calculated and the timer
-   * is being resetted.
-   */
-  double GetTimedDeltaTime() const ATLAS_NOEXCEPT;
-
   //============================================================================
   // P R I V A T E   M E M B E R S
 
   ros::NodeHandle nh_;
 
   mutable std::mutex data_mutex_;
-  Tp_ last_data_;
+  std::queue<DataType> data_buffer_;
+  DataType current_data_;
 
   std::atomic<bool> new_data_ready_;
   std::atomic<bool> is_simulated_time_;
 
-  /**
-   * The timer that will be used to get the delta time between two IMU measures
-   */
-  atlas::MicroTimer timer_;
-
-  double timed_dt_;
+  double first_stamped_t_;
+  double last_stamped_t_;
+  double current_stamped_t_;
   double stamped_dt_;
   double sim_dt_;
 

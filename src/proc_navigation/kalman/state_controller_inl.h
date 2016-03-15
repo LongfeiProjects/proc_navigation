@@ -28,9 +28,13 @@
 #error This file may only be included state_controller.h
 #endif  // PROC_NAVIGATION_CONTROLLER_STATE_CONTROLLER_H_
 
+#include <typeinfo>
 #include "proc_navigation/kalman/state_controller.h"
 
 namespace proc_navigation {
+
+template <class Tp_>
+const uint32_t StateController<Tp_>::BUFFER_SIZE = 250;
 
 //==============================================================================
 // C / D T O R S   S E C T I O N
@@ -43,18 +47,17 @@ ATLAS_INLINE StateController<Tp_>::StateController(
     double sim_dt) ATLAS_NOEXCEPT
     : nh_(nh),
       data_mutex_(),
-      last_data_(),
+      data_buffer_(),
       new_data_ready_(false),
       is_simulated_time_(simulation),
-      timer_(),
-      timed_dt_(0),
-      sim_dt_(sim_dt),
+      first_stamped_t_(0),
+      last_stamped_t_(0),
+      current_stamped_t_(0),
       stamped_dt_(0),
+      sim_dt_(sim_dt),
       message_count_(0),
       subscriber_(nh_.subscribe(topic_name, 100,
-                                &StateController<Tp_>::Callback, this)) {
-  timer_.Start();
-}
+                                &StateController<Tp_>::Callback, this)) {}
 
 //------------------------------------------------------------------------------
 //
@@ -69,26 +72,29 @@ ATLAS_INLINE StateController<Tp_>::~StateController() ATLAS_NOEXCEPT {}
 template <class Tp_>
 ATLAS_INLINE void StateController<Tp_>::Callback(const DataType &msg)
     ATLAS_NOEXCEPT {
-  if (new_data_ready_) {
-    ROS_WARN(
-        "Buffer overflow in the state controller, a data has been skipped");
-  }
-  new_data_ready_ = true;
-  ++message_count_;
   std::lock_guard<std::mutex> guard(data_mutex_);
 
-  if (message_count_ > 1) {
-    static const auto us = std::pow(10, -6);
-    stamped_dt_ = ros::Time(msg.header.stamp).toSec() -
-                  ros::Time(last_data_.header.stamp).toSec();
-    timed_dt_ = timer_.MicroSeconds() * us;
-    timer_.Reset();
-  } else {
-    stamped_dt_ = 0;
-    timed_dt_ = 0;
-    timer_.Reset();
+  new_data_ready_ = true;
+  ++message_count_;
+
+  if (message_count_ == 1) {
+    first_stamped_t_ = ros::Time(msg->header.stamp).toSec();
   }
-  last_data_ = msg;
+  last_stamped_t_ = ros::Time(msg->header.stamp).toSec();
+
+  if (data_buffer_.size() >= BUFFER_SIZE) {
+    ROS_WARN_STREAM("Buffer overflow in the state controller of "
+                    << typeid(msg).name() << ", a data has been skipped");
+    data_buffer_.pop();
+  }
+
+  // TODO Thibaut: Make a config for debug that display this message, otherwise
+  // it will polute the cout.
+  ROS_INFO_STREAM("New message received:"
+                  << "\n    Type: " << typeid(msg).name()
+                  << "\n    Timestamp: " << last_stamped_t_ << "\n\n");
+
+  data_buffer_.push(msg);
 }
 
 //------------------------------------------------------------------------------
@@ -100,21 +106,98 @@ ATLAS_INLINE void StateController<std_msgs::Float64>::Callback(
   // does not have any header.
   // Anyway we don't use the dt of the baro...
   // TODO: Delete this method when we subscribe to FluidPressure messages
+  std::lock_guard<std::mutex> guard(data_mutex_);
   new_data_ready_ = true;
   ++message_count_;
+
+  if (data_buffer_.size() >= BUFFER_SIZE) {
+    ROS_WARN_STREAM("Buffer overflow in the state controller of "
+                    << typeid(msg).name() << ", a data has been skipped");
+    data_buffer_.pop();
+  }
+
+  data_buffer_.push(msg);
+}
+
+//------------------------------------------------------------------------------
+//
+template <>
+ATLAS_INLINE std_msgs::Float64::Ptr
+StateController<std_msgs::Float64>::GetLastData() {
   std::lock_guard<std::mutex> guard(data_mutex_);
-  timed_dt_ = timer_.MicroSeconds() * std::pow(10, -6);
-  timer_.Reset();
-  last_data_ = msg;
+
+  current_data_ = data_buffer_.front();
+  data_buffer_.pop();
+  stamped_dt_ = sim_dt_;
+
+  new_data_ready_ = data_buffer_.size() > 0;
+  return current_data_;
 }
 
 //------------------------------------------------------------------------------
 //
 template <class Tp_>
-ATLAS_INLINE Tp_ StateController<Tp_>::GetLastData() ATLAS_NOEXCEPT {
-  new_data_ready_ = false;
+ATLAS_INLINE typename StateController<Tp_>::DataType
+StateController<Tp_>::GetLastData() {
   std::lock_guard<std::mutex> guard(data_mutex_);
-  return last_data_;
+
+  if (new_data_ready_) {
+    if (data_buffer_.size() < 1) {
+      throw std::logic_error(
+          "The buffer is empty when it is supposed to contain data.");
+    }
+
+    current_data_ = data_buffer_.front();
+    data_buffer_.pop();
+
+    // If it is the first message, we want to have a null dt, thus, take the
+    // last time at the time of the current data (difference will be 0).
+    if (message_count_ == 1) {
+      current_stamped_t_ = ros::Time(current_data_->header.stamp).toSec();
+    }
+
+    stamped_dt_ =
+        ros::Time(current_data_->header.stamp).toSec() - current_stamped_t_;
+
+    current_stamped_t_ = ros::Time(current_data_->header.stamp).toSec();
+
+    new_data_ready_ = data_buffer_.size() > 0;
+    return current_data_;
+  } else {
+    return current_data_;
+  }
+}
+
+//------------------------------------------------------------------------------
+//
+template <class Tp_>
+ATLAS_INLINE typename StateController<Tp_>::DataType
+StateController<Tp_>::GetLastDataIfDtIn(double dt) {
+  data_mutex_.lock();
+
+  auto t_next = GetTimeForNext();
+  if (t_next <= dt) {
+    data_mutex_.unlock();
+    return GetLastData();
+  } else {
+    data_mutex_.unlock();
+    return nullptr;
+  }
+}
+
+//------------------------------------------------------------------------------
+//
+template <>
+ATLAS_INLINE std_msgs::Float64::Ptr
+StateController<std_msgs::Float64>::GetLastDataIfDtIn(double dt) {
+  data_mutex_.lock();
+  if (sim_dt_ * (message_count_ - 1) < dt) {
+    data_mutex_.unlock();
+    return GetLastData();
+  } else {
+    data_mutex_.unlock();
+    return nullptr;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -138,10 +221,45 @@ ATLAS_INLINE double StateController<Tp_>::GetDeltaTime() const ATLAS_NOEXCEPT {
 //------------------------------------------------------------------------------
 //
 template <class Tp_>
-ATLAS_INLINE double StateController<Tp_>::GetTimedDeltaTime() const
+ATLAS_INLINE double StateController<Tp_>::GetTimeForLast() const
     ATLAS_NOEXCEPT {
-  std::lock_guard<std::mutex> guard(data_mutex_);
-  return timed_dt_;
+  if (is_simulated_time_) {
+    return (message_count_ - 1) * sim_dt_;
+  } else {
+    return last_stamped_t_ - first_stamped_t_;
+  }
+}
+
+//------------------------------------------------------------------------------
+//
+template <class Tp_>
+ATLAS_INLINE double StateController<Tp_>::GetTimeForCurrent() const
+    ATLAS_NOEXCEPT {
+  if (is_simulated_time_) {
+    // Note that if there was a buffer overflow, this calculus is wrong...
+    // Anyway, it is in sumalation mode and if there is a buffer overflow,
+    // a problem must be solved elsewhere.
+    return (message_count_ - data_buffer_.size()) * sim_dt_;
+  } else {
+    return current_stamped_t_ - first_stamped_t_;
+  }
+}
+
+//------------------------------------------------------------------------------
+//
+template <class Tp_>
+ATLAS_INLINE double StateController<Tp_>::GetTimeForNext() const
+    ATLAS_NOEXCEPT {
+  if (is_simulated_time_) {
+    // Note that if there was a buffer overflow, this calculus is wrong...
+    // Anyway, it is in sumalation mode and if there is a buffer overflow,
+    // a problem must be solved elsewhere.
+    return (message_count_ - data_buffer_.size() + 1) * sim_dt_;
+  } else {
+    auto data = data_buffer_.front();
+    auto next_stamp = ros::Time(data->header.stamp).toSec();
+    return next_stamp - first_stamped_t_;
+  }
 }
 
 //------------------------------------------------------------------------------
