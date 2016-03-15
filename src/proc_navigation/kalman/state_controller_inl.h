@@ -88,12 +88,6 @@ ATLAS_INLINE void StateController<Tp_>::Callback(const DataType &msg)
     data_buffer_.pop();
   }
 
-  // TODO Thibaut: Make a config for debug that display this message, otherwise
-  // it will polute the cout.
-  ROS_INFO_STREAM("New message received:"
-                  << "\n    Type: " << typeid(msg).name()
-                  << "\n    Timestamp: " << last_stamped_t_ << "\n\n");
-
   data_buffer_.push(msg);
 }
 

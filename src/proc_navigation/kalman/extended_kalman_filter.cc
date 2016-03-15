@@ -58,8 +58,7 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(
                                                    criterions_(),
                                                    is_stationnary_(false),
                                                    ge_(),
-                                                   g_n_(),
-                                                   i_(0) {
+                                                   g_n_() {
   Start();
 }
 
@@ -305,7 +304,6 @@ void ExtendedKalmanFilter::Run() {
 
   while (IsRunning()) {
     if (imu_->IsNewDataReady()) {
-      ++i_;
       auto imu_msg = imu_->GetLastData();
       double dt = imu_->GetDeltaTime();
       imu_timer_.Reset();
@@ -632,8 +630,6 @@ void ExtendedKalmanFilter::UpdateDvl(const Eigen::Vector3d &dvl_raw_data)
     static Eigen::Matrix<double, 3, 3> r_b_dvl_adj =
         extra_states_.r_b_dvl.adjoint();
     Eigen::Vector3d dvl_data = r_b_dvl_adj * dvl_raw_data;
-    ROS_INFO_STREAM(dvl_data(0) << "    " << dvl_data(1) << "    "
-                                << dvl_data(2));
     // Aiding Measurement Model
     auto skew_l_pd = atlas::SkewMatrix(l_pd);
     Eigen::Matrix<double, 3, 16> h_dvl = Eigen::Matrix<double, 3, 16>::Zero();

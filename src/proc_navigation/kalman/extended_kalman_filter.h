@@ -214,9 +214,6 @@ class ExtendedKalmanFilter : public atlas::Runnable,
   double ge_;
 
   Eigen::Vector3d g_n_;
-
-  // For debugging purpose, to delete
-  int i_ = 0;
 };
 
 //==============================================================================
