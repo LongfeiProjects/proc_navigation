@@ -361,9 +361,9 @@ void ExtendedKalmanFilter::Run() {
         mag_timer_.Reset();
         mag_timer_.Start();
         Eigen::Vector3d mag_raw_data;
-        mag_raw_data(0) = mag_msg->magnetic_field.x;
-        mag_raw_data(1) = mag_msg->magnetic_field.y;
-        mag_raw_data(2) = mag_msg->magnetic_field.z;
+        mag_raw_data(0) = imu_sign_x * mag_msg->magnetic_field.x;
+        mag_raw_data(1) = imu_sign_y * mag_msg->magnetic_field.y;
+        mag_raw_data(2) = imu_sign_z * mag_msg->magnetic_field.z;
         UpdateMag(mag_raw_data);
         mag_timer_.Pause();
       }
@@ -586,7 +586,7 @@ void ExtendedKalmanFilter::UpdateMag(const Eigen::Vector3d &mag_raw_data)
   r_b2w(2, 2) = std::cos(pitch) * std::cos(roll);
 
   Eigen::Vector3d m_w = r_b2w * m_b;
-  double yaw_meas = std::atan2(-m_w(2), m_w(1));
+  double yaw_meas = std::atan2(-m_w(1), m_w(0));
 
   Eigen::Matrix3d omega_t = Eigen::Matrix3d::Zero(3, 3);
   omega_t(0, 0) = std::cos(yaw_hat) * std::cos(pitch);
@@ -660,8 +660,9 @@ void ExtendedKalmanFilter::UpdateDvl(const Eigen::Vector3d &dvl_raw_data)
         h_dvl * kalman_matrix_.p_ * h_dvl.adjoint() + r_dvl;
     Eigen::Matrix<double, 16, 3> k_dvl =
         kalman_matrix_.p_ * h_dvl.adjoint() * s_dvl.inverse();
-    Eigen::Matrix<double, 16, 16> eye16 = Eigen::Matrix<double, 16, 16>::Zero();
-    kalman_matrix_.p_ = (eye16 - k_dvl * h_dvl) * kalman_matrix_.p_;
+    kalman_matrix_.p_ =
+        (Eigen::Matrix<double, 16, 16>::Identity(16, 16) - k_dvl * h_dvl) *
+        kalman_matrix_.p_;
     // Prediction
     Eigen::Vector3d dvl_hat =
         extra_states_.r_n_b * states_.vel_n + extra_states_.w_ib_b.cross(l_pd);
@@ -697,8 +698,8 @@ void ExtendedKalmanFilter::UpdateBaro(const double &baro_meas) ATLAS_NOEXCEPT {
   }
 
   // Aiding Measurement Model
-  auto l_tp = extra_states_.r_n_b * l_pp;
-  auto skew_l_tp = atlas::SkewMatrix(l_tp);
+  Eigen::Vector3d l_tp = extra_states_.r_n_b * l_pp;
+  Eigen::Matrix3d skew_l_tp = atlas::SkewMatrix(l_tp);
   Eigen::Matrix<double, 1, 16> h_baro = Eigen::Matrix<double, 1, 16>::Zero();
   Eigen::Matrix<double, 1, 3> tmp_mat =
       -Eigen::Matrix<double, 1, 3>(0, 0, 1) * skew_l_tp;
@@ -712,14 +713,15 @@ void ExtendedKalmanFilter::UpdateBaro(const double &baro_meas) ATLAS_NOEXCEPT {
   double depth_hat = states_.pos_n(2);
   double d_z_baro = depth_meas - depth_hat;
 
-  // Apparently canno't do coefficient-wise operation on matrix with Eigen
-  // And we need to convert to array first. Lot of type casting here...
-  // see: http://eigen.tuxfamily.org/dox-devel/group__TutorialArrayClass.html
-  auto k_baro_tmp = h_baro * kalman_matrix_.p_ * h_baro.adjoint();
-  auto k_baro_tmp_arr = k_baro_tmp.array() + r_baro;
-  auto k_baro =
-      kalman_matrix_.p_ * h_baro.adjoint() * k_baro_tmp_arr.matrix().inverse();
-  auto d_x = k_baro * d_z_baro;
+  double s_baro = h_baro * kalman_matrix_.p_ * h_baro.adjoint() + r_baro;
+  Eigen::Matrix<double, 16, 1> k_baro =
+      kalman_matrix_.p_ * h_baro.adjoint() / s_baro;
+
+  kalman_matrix_.p_ =
+      (Eigen::Matrix<double, 16, 16>::Identity(16, 16) - k_baro * h_baro) *
+      kalman_matrix_.p_;
+
+  Eigen::Matrix<double, 16, 1> d_x = k_baro * d_z_baro;
   UpdateStates(d_x);
 }
 
