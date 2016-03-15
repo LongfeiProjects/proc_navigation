@@ -322,7 +322,6 @@ void ExtendedKalmanFilter::Run() {
       gyr_raw_data(2) = imu_sign_z * imu_msg->angular_velocity.z;
 
       extra_states_.w_ib_b = gyr_raw_data - states_.gyro_bias;
-      criterions_.ufw = std::pow(extra_states_.w_ib_b.norm(), 2);
 
       states_.b = atlas::ExactQuat(extra_states_.w_ib_b, dt, states_.b);
       extra_states_.r_n_b = Eigen::Matrix3d(states_.b);
@@ -513,6 +512,8 @@ void ExtendedKalmanFilter::KalmanStatesCovariancePropagation(const double &dt)
     ATLAS_NOEXCEPT {
   Eigen::Matrix<double, 16, 16> q =
       kalman_matrix_.g_ * kalman_matrix_.qc_ * kalman_matrix_.g_.adjoint();
+
+  criterions_.ufw = std::pow(extra_states_.w_ib_b.norm(), 2);
 
   Eigen::Matrix<double, 16, 16> q_k = q * dt;
   q_k(0, 0) = q_k(0, 0) + criterions_.ufw * dt;
