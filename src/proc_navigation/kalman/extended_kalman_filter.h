@@ -56,8 +56,7 @@ class ExtendedKalmanFilter : public atlas::Runnable,
   using PtrList = std::vector<ExtendedKalmanFilter::Ptr>;
   using ConstPtrList = std::vector<ExtendedKalmanFilter::ConstPtr>;
 
-  // using BaroMessage = sensor_msgs::FluidPressure;
-  using BaroMessage = std_msgs::Float64;
+  using BaroMessage = sensor_msgs::FluidPressure;
   using DvlMessage = geometry_msgs::TwistWithCovarianceStamped;
   using ImuMessage = sensor_msgs::Imu;
   using MagMessage = sensor_msgs::MagneticField;

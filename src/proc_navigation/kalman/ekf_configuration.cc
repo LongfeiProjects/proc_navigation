@@ -62,7 +62,7 @@ EkfConfiguration::EkfConfiguration(const ros::NodeHandle &nh) ATLAS_NOEXCEPT
       sigma0_bias_acc(0.1),
       sigma0_bias_gyr(0.001),
       sigma0_bias_baro(0.001),
-      sigma_meas_acc(15.),
+      sigma_meas_acc(15.0),
       sigma_meas_gyr(0.01),
       sigma_walk_bias_acc(0.001),
       sigma_walk_bias_gyr(0.001),
@@ -250,11 +250,11 @@ void EkfConfiguration::DeserializeConfiguration() ATLAS_NOEXCEPT {
   FindParameter("/device_sign/mag/y", mag_sign_y);
   FindParameter("/device_sign/mag/z", mag_sign_z);
 
-  FindParameter("/proc_navigation/simulation/active", simulation_active);
-  FindParameter("/proc_navigation/simulation/dt_imu", simulation_dt_imu);
-  FindParameter("/proc_navigation/simulation/dt_mag", simulation_dt_mag);
-  FindParameter("/proc_navigation/simulation/dt_dvl", simulation_dt_dvl);
-  FindParameter("/proc_navigation/simulation/dt_baro", simulation_dt_baro);
+  FindParameter("/simulation/active", simulation_active);
+  FindParameter("/simulation/dt_imu", simulation_dt_imu);
+  FindParameter("/simulation/dt_mag", simulation_dt_mag);
+  FindParameter("/simulation/dt_dvl", simulation_dt_dvl);
+  FindParameter("/simulation/dt_baro", simulation_dt_baro);
 
   // Getting the matrix for Eigen compatible types
   std::vector<double> l_pd_tmp({static_cast<double>(l_pd(0)),

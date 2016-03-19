@@ -130,7 +130,7 @@ void ExtendedKalmanFilter::Initialize() {
     if (baro_->IsNewDataReady() && active_baro) {
       auto baro_msg = baro_->GetLastDataIfDtIn(t_init);
       if (baro_msg != nullptr) {
-        pressure.push_back(baro_msg->data);
+        pressure.push_back(baro_msg->fluid_pressure);
         CorrectNaN(baro_msg);
         real_stamped_ok_baro = false;
       } else {
@@ -301,9 +301,10 @@ Eigen::Quaterniond ExtendedKalmanFilter::CalculateInitialRotationMatrix(
 //
 void ExtendedKalmanFilter::Run() {
   Initialize();
-
+  int i = 0;
   while (IsRunning()) {
     if (imu_->IsNewDataReady()) {
+      i+=1;
       auto imu_msg = imu_->GetLastData();
       double dt = imu_->GetDeltaTime();
       imu_timer_.Reset();
@@ -360,9 +361,9 @@ void ExtendedKalmanFilter::Run() {
         mag_timer_.Reset();
         mag_timer_.Start();
         Eigen::Vector3d mag_raw_data;
-        mag_raw_data(0) = imu_sign_x * mag_msg->magnetic_field.x;
-        mag_raw_data(1) = imu_sign_y * mag_msg->magnetic_field.y;
-        mag_raw_data(2) = imu_sign_z * mag_msg->magnetic_field.z;
+        mag_raw_data(0) = mag_sign_x * mag_msg->magnetic_field.x;
+        mag_raw_data(1) = mag_sign_y * mag_msg->magnetic_field.y;
+        mag_raw_data(2) = mag_sign_z * mag_msg->magnetic_field.z;
         UpdateMag(mag_raw_data);
         mag_timer_.Pause();
       }
@@ -382,12 +383,17 @@ void ExtendedKalmanFilter::Run() {
       if (baro_->IsNewDataReady() && active_baro) {
         baro_timer_.Reset();
         baro_timer_.Start();
-        UpdateBaro(baro_->GetLastData()->data);
+        UpdateBaro(baro_->GetLastData()->fluid_pressure);
         baro_timer_.Pause();
       }
 
       // Covariance Matrix Simetrization
       kalman_matrix_.p_ = (kalman_matrix_.p_ + kalman_matrix_.p_.adjoint()) / 2;
+
+      std::cout << "Vel: " << states_.vel_n(0) << ", " << states_.vel_n(1)
+                          << ", " << states_.vel_n(2) << std::endl;
+      std::cout << "Pos: " << states_.pos_n(0) << ", " << states_.pos_n(1)
+          << ", " << states_.pos_n(2) << std::endl;
 
       Notify();
     }
@@ -402,9 +408,9 @@ void ExtendedKalmanFilter::Mechanization(const Eigen::Vector3d &f_b,
 
   Eigen::Vector3d v_dot_n = extra_states_.r_b_n * f_b + g_n_;
 
-  states_.pos_n = states_.pos_n + p_dot_n * dt;
-  states_.vel_n = states_.vel_n + v_dot_n * dt;
-  extra_states_.vel_b = extra_states_.r_n_b * states_.vel_n;
+   states_.pos_n = states_.pos_n + p_dot_n * dt;
+   states_.vel_n = states_.vel_n + v_dot_n * dt;
+   extra_states_.vel_b = extra_states_.r_n_b * states_.vel_n;
 }
 
 //------------------------------------------------------------------------------
@@ -588,6 +594,10 @@ void ExtendedKalmanFilter::UpdateMag(const Eigen::Vector3d &mag_raw_data)
 
   Eigen::Vector3d m_w = r_b2w * m_b;
   double yaw_meas = std::atan2(-m_w(1), m_w(0));
+
+
+  std::cout << "Yaw Hat: " << 180*yaw_hat/M_PI << std::endl;
+  std::cout << "Yaw Meas: " << 180*yaw_meas/M_PI << std::endl;
 
   Eigen::Matrix3d omega_t = Eigen::Matrix3d::Zero(3, 3);
   omega_t(0, 0) = std::cos(yaw_hat) * std::cos(pitch);
@@ -808,7 +818,7 @@ void ExtendedKalmanFilter::CorrectNaN(MagMessage::Ptr msg) const
 //
 void ExtendedKalmanFilter::CorrectNaN(BaroMessage::Ptr msg) const
     ATLAS_NOEXCEPT {
-  ReplaceNaNByZero(msg->data, "data");
+  ReplaceNaNByZero(msg->fluid_pressure, "barometer");
 }
 
 }  // namespace proc_navigation

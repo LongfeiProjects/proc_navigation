@@ -1,5 +1,5 @@
 <launch>
-	<node name="proc_navigation_node"
+	<node name="proc_navigation"
 	    pkg="proc_navigation"
 	    type="proc_navigation_node"
 	    output="log" />

@@ -93,43 +93,6 @@ ATLAS_INLINE void StateController<Tp_>::Callback(const DataType &msg)
 
 //------------------------------------------------------------------------------
 //
-template <>
-ATLAS_INLINE void StateController<std_msgs::Float64>::Callback(
-    const DataType &msg) ATLAS_NOEXCEPT {
-  // This is a temporary method for the barometer because the double64 message
-  // does not have any header.
-  // Anyway we don't use the dt of the baro...
-  // TODO: Delete this method when we subscribe to FluidPressure messages
-  std::lock_guard<std::mutex> guard(data_mutex_);
-  new_data_ready_ = true;
-  ++message_count_;
-
-  if (data_buffer_.size() >= BUFFER_SIZE) {
-    ROS_WARN_STREAM("Buffer overflow in the state controller of "
-                    << typeid(msg).name() << ", a data has been skipped");
-    data_buffer_.pop();
-  }
-
-  data_buffer_.push(msg);
-}
-
-//------------------------------------------------------------------------------
-//
-template <>
-ATLAS_INLINE std_msgs::Float64::Ptr
-StateController<std_msgs::Float64>::GetLastData() {
-  std::lock_guard<std::mutex> guard(data_mutex_);
-
-  current_data_ = data_buffer_.front();
-  data_buffer_.pop();
-  stamped_dt_ = sim_dt_;
-
-  new_data_ready_ = data_buffer_.size() > 0;
-  return current_data_;
-}
-
-//------------------------------------------------------------------------------
-//
 template <class Tp_>
 ATLAS_INLINE typename StateController<Tp_>::DataType
 StateController<Tp_>::GetLastData() {
@@ -171,21 +134,6 @@ StateController<Tp_>::GetLastDataIfDtIn(double dt) {
 
   auto t_next = GetTimeForNext();
   if (t_next <= dt) {
-    data_mutex_.unlock();
-    return GetLastData();
-  } else {
-    data_mutex_.unlock();
-    return nullptr;
-  }
-}
-
-//------------------------------------------------------------------------------
-//
-template <>
-ATLAS_INLINE std_msgs::Float64::Ptr
-StateController<std_msgs::Float64>::GetLastDataIfDtIn(double dt) {
-  data_mutex_.lock();
-  if (sim_dt_ * (message_count_ - 1) < dt) {
     data_mutex_.unlock();
     return GetLastData();
   } else {
