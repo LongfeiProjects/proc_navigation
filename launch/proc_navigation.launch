@@ -2,8 +2,7 @@
 	<node name="proc_navigation_node"
 	    pkg="proc_navigation"
 	    type="proc_navigation_node"
-	    output="log"
-	    launch-prefix="gdb -ex run --args" />
+	    output="log" />
 
     <rosparam command="load"
         file="$(find proc_navigation)/config/ekf_constants.yaml"/>
