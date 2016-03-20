@@ -183,16 +183,6 @@ class ExtendedKalmanFilter : public atlas::Runnable,
   StateController<DvlMessage>::Ptr dvl_;
 
   /**
-   * These are the timers for the processing times.
-   * Not to be confunded with the dt between two data that is provided
-   * by the StateController.
-   */
-  atlas::MicroTimer baro_timer_;
-  atlas::MicroTimer imu_timer_;
-  atlas::MicroTimer mag_timer_;
-  atlas::MicroTimer dvl_timer_;
-
-  /**
    * The initial state and states of the kalman filter.
    * The values of the states are set after the initialization step.
    */

@@ -81,7 +81,7 @@ EkfConfiguration::EkfConfiguration(const ros::NodeHandle &nh) ATLAS_NOEXCEPT
       dvl_topic("/provider_dvl/twist"),
       imu_topic("/provider_imu/imu"),
       mag_topic("/provider_imu/magnetic_field"),
-      simulation_active(true),
+      simulation_active(false),
       simulation_dt_imu(0.01),
       simulation_dt_mag(0.01),
       simulation_dt_dvl(0.2857142857142857),
@@ -273,7 +273,7 @@ void EkfConfiguration::DeserializeConfiguration() ATLAS_NOEXCEPT {
   l_pp = Eigen::Vector3d(l_pp_tmp[0], l_pp_tmp[1], l_pp_tmp[2]);
 
   // Converting the value of the pressure in rad
-  heading_shift_dvl = static_cast<double>(heading_shift_dvl * M_PI / 180);
+  heading_shift_dvl = heading_shift_dvl * M_PI / 180;
 }
 
 //------------------------------------------------------------------------------

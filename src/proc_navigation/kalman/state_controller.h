@@ -100,6 +100,8 @@ class StateController {
   double GetTimeForCurrent() const ATLAS_NOEXCEPT;
   double GetTimeForNext() const ATLAS_NOEXCEPT;
 
+  uint64_t GetMessageCount() const ATLAS_NOEXCEPT;
+
  private:
   //============================================================================
   // P R I V A T E   M E T H O D S

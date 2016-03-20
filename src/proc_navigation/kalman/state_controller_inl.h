@@ -152,6 +152,14 @@ ATLAS_INLINE bool StateController<Tp_>::IsNewDataReady() const ATLAS_NOEXCEPT {
 //------------------------------------------------------------------------------
 //
 template <class Tp_>
+ATLAS_INLINE uint64_t
+StateController<Tp_>::GetMessageCount() const ATLAS_NOEXCEPT {
+  return message_count_;
+}
+
+//------------------------------------------------------------------------------
+//
+template <class Tp_>
 ATLAS_INLINE double StateController<Tp_>::GetDeltaTime() const ATLAS_NOEXCEPT {
   if (is_simulated_time_) {
     return GetSimulatedDeltaTime();
