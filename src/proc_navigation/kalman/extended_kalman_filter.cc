@@ -113,7 +113,7 @@ void ExtendedKalmanFilter::Initialize() {
           "There was no data received from the IMU in the Initialization.");
     }
 
-    if (mag_->IsNewDataReady()) {
+    if (mag_->IsNewDataReady() && active_mag) {
       auto mag_msg = mag_->GetLastDataIfDtIn(t_init);
       if (mag_msg != nullptr) {
         CorrectNaN(mag_msg);
