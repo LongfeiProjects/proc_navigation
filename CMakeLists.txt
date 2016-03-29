@@ -101,7 +101,7 @@ add_dependencies(${PROJECT_NAME}_node sonia_msgs_generate_messages_cpp)
 #==========================================================================
 # U N I T   T E S T S
 
-if (CATKIN_ENABLE_TESTING AND ${CMAKE_CURRENT_SOURCE_DIR}/test)
-  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
+if (CATKIN_ENABLE_TESTING)
+  add_subdirectory(test)
 endif ()
 
