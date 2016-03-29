@@ -171,19 +171,19 @@ TEST(SimulationDataTest, all_devices_noisy) {
 int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
 
-  ros::param::set("/proc_navigation/simulation/active", true);
-  ros::param::set("/proc_navigation/simulation/dt_imu", dt_imu);
-  ros::param::set("/proc_navigation/simulation/dt_mag", dt_mag);
-  ros::param::set("/proc_navigation/simulation/dt_dvl", dt_dvl);
-  ros::param::set("/proc_navigation/simulation/dt_baro", dt_baro);
-
-  ros::param::set("/proc_navigation/topics/baro:", imu_topic);
-  ros::param::set("/proc_navigation/topics/dvl:", mag_topic);
-  ros::param::set("/proc_navigation/topics/imu:", dvl_topic);
-  ros::param::set("/proc_navigation/topics/mag:", baro_topic);
-
   ros::init(argc, argv, "proc_navigation");
   nh = std::make_shared<ros::NodeHandle>("~");
+
+  nh->setParam("/proc_navigation/simulation/active", true);
+  nh->setParam("/proc_navigation/simulation/dt_imu", dt_imu);
+  nh->setParam("/proc_navigation/simulation/dt_mag", dt_mag);
+  nh->setParam("/proc_navigation/simulation/dt_dvl", dt_dvl);
+  nh->setParam("/proc_navigation/simulation/dt_baro", dt_baro);
+
+  nh->setParam("/proc_navigation/topics/baro", imu_topic);
+  nh->setParam("/proc_navigation/topics/dvl", mag_topic);
+  nh->setParam("/proc_navigation/topics/imu", dvl_topic);
+  nh->setParam("/proc_navigation/topics/mag", baro_topic);
 
   return RUN_ALL_TESTS();
 }
