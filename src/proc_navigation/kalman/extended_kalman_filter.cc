@@ -47,10 +47,6 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(
                                                    imu_(imu),
                                                    mag_(mag),
                                                    dvl_(dvl),
-                                                   baro_timer_(),
-                                                   imu_timer_(),
-                                                   mag_timer_(),
-                                                   dvl_timer_(),
                                                    states_(),
                                                    kalman_states_(),
                                                    extra_states_(),
@@ -72,8 +68,12 @@ ExtendedKalmanFilter::~ExtendedKalmanFilter() ATLAS_NOEXCEPT {}
 //------------------------------------------------------------------------------
 //
 void ExtendedKalmanFilter::Initialize() {
-  while (!imu_->IsNewDataReady())
+  while (!imu_->IsNewDataReady() && !ros::isShuttingDown())
     ;
+
+  if (ros::isShuttingDown()) {
+    return;
+  }
 
   // The vectors of interest for the initilization states.
   std::array<std::vector<double>, 3> g;
@@ -86,8 +86,17 @@ void ExtendedKalmanFilter::Initialize() {
   bool real_stamped_ok_mag = !active_mag;
   bool real_stamped_ok_baro = !active_baro;
 
-  while (!(real_stamped_ok_imu && real_stamped_ok_dvl && real_stamped_ok_mag &&
-           real_stamped_ok_baro)) {
+  auto all_stamped_ok = [&]() {
+    return real_stamped_ok_imu && real_stamped_ok_dvl && real_stamped_ok_mag &&
+           real_stamped_ok_baro;
+  };
+
+  auto one_stamped_ok = [&]() {
+    return real_stamped_ok_imu || real_stamped_ok_dvl || real_stamped_ok_mag ||
+           real_stamped_ok_baro;
+  };
+
+  while (!(all_stamped_ok())) {
     if (imu_->IsNewDataReady()) {
       auto imu_msg = imu_->GetLastDataIfDtIn(t_init);
       if (imu_msg != nullptr) {
@@ -99,9 +108,12 @@ void ExtendedKalmanFilter::Initialize() {
       } else {
         real_stamped_ok_imu = true;
       }
+    } else if (one_stamped_ok() && imu_->GetMessageCount() == 0) {
+      throw std::runtime_error(
+          "There was no data received from the IMU in the Initialization.");
     }
 
-    if (mag_->IsNewDataReady()) {
+    if (mag_->IsNewDataReady() && active_mag) {
       auto mag_msg = mag_->GetLastDataIfDtIn(t_init);
       if (mag_msg != nullptr) {
         CorrectNaN(mag_msg);
@@ -112,6 +124,12 @@ void ExtendedKalmanFilter::Initialize() {
       } else {
         real_stamped_ok_mag = true;
       }
+    } else if (active_mag && one_stamped_ok() && mag_->GetMessageCount() == 0) {
+      ROS_WARN(
+          "There was no data received from the magnetometer in the "
+          "Initialization. The device has been deactivate");
+      real_stamped_ok_mag = true;
+      active_mag = false;
     }
 
     if (dvl_->IsNewDataReady() && active_dvl) {
@@ -125,17 +143,30 @@ void ExtendedKalmanFilter::Initialize() {
       } else {
         real_stamped_ok_dvl = true;
       }
+    } else if (active_dvl && one_stamped_ok() && dvl_->GetMessageCount() == 0) {
+      ROS_WARN(
+          "There was no data received from the DVL in the Initialization. The "
+          "device has been deactivate");
+      real_stamped_ok_dvl = true;
+      active_dvl = false;
     }
 
     if (baro_->IsNewDataReady() && active_baro) {
       auto baro_msg = baro_->GetLastDataIfDtIn(t_init);
       if (baro_msg != nullptr) {
-        pressure.push_back(baro_msg->data);
+        pressure.push_back(baro_msg->fluid_pressure);
         CorrectNaN(baro_msg);
         real_stamped_ok_baro = false;
       } else {
         real_stamped_ok_baro = true;
       }
+    } else if (active_baro && one_stamped_ok() &&
+               baro_->GetMessageCount() == 0) {
+      ROS_WARN(
+          "There was no data received from the barometer in the "
+          "Initialization. The device has been deactivate");
+      real_stamped_ok_baro = true;
+      active_baro = false;
     }
   }
 
@@ -302,12 +333,10 @@ Eigen::Quaterniond ExtendedKalmanFilter::CalculateInitialRotationMatrix(
 void ExtendedKalmanFilter::Run() {
   Initialize();
 
-  while (IsRunning()) {
+  while (IsRunning() && !ros::isShuttingDown()) {
     if (imu_->IsNewDataReady()) {
       auto imu_msg = imu_->GetLastData();
       double dt = imu_->GetDeltaTime();
-      imu_timer_.Reset();
-      imu_timer_.Start();
 
       Eigen::Vector3d acc_raw_data;
       acc_raw_data(0) = imu_sign_x * imu_msg->linear_acceleration.x;
@@ -347,8 +376,6 @@ void ExtendedKalmanFilter::Run() {
         is_stationnary_ = false;
       }
 
-      imu_timer_.Pause();
-
       // Update step
 
       if (is_stationnary_ && active_gravity) {
@@ -357,33 +384,24 @@ void ExtendedKalmanFilter::Run() {
 
       if (mag_->IsNewDataReady() && active_mag) {
         auto mag_msg = mag_->GetLastData();
-        mag_timer_.Reset();
-        mag_timer_.Start();
         Eigen::Vector3d mag_raw_data;
-        mag_raw_data(0) = imu_sign_x * mag_msg->magnetic_field.x;
-        mag_raw_data(1) = imu_sign_y * mag_msg->magnetic_field.y;
-        mag_raw_data(2) = imu_sign_z * mag_msg->magnetic_field.z;
+        mag_raw_data(0) = mag_sign_x * mag_msg->magnetic_field.x;
+        mag_raw_data(1) = mag_sign_y * mag_msg->magnetic_field.y;
+        mag_raw_data(2) = mag_sign_z * mag_msg->magnetic_field.z;
         UpdateMag(mag_raw_data);
-        mag_timer_.Pause();
       }
 
       if (dvl_->IsNewDataReady() && active_dvl) {
         auto dvl_msg = dvl_->GetLastData();
-        dvl_timer_.Reset();
-        dvl_timer_.Start();
         Eigen::Vector3d dvl_raw_data;
         dvl_raw_data(0) = dvl_msg->twist.twist.linear.x;
         dvl_raw_data(1) = dvl_msg->twist.twist.linear.y;
         dvl_raw_data(2) = dvl_msg->twist.twist.linear.z;
         UpdateDvl(dvl_raw_data);
-        dvl_timer_.Pause();
       }
 
       if (baro_->IsNewDataReady() && active_baro) {
-        baro_timer_.Reset();
-        baro_timer_.Start();
-        UpdateBaro(baro_->GetLastData()->data);
-        baro_timer_.Pause();
+        UpdateBaro(baro_->GetLastData()->fluid_pressure);
       }
 
       // Covariance Matrix Simetrization
@@ -808,7 +826,7 @@ void ExtendedKalmanFilter::CorrectNaN(MagMessage::Ptr msg) const
 //
 void ExtendedKalmanFilter::CorrectNaN(BaroMessage::Ptr msg) const
     ATLAS_NOEXCEPT {
-  ReplaceNaNByZero(msg->data, "data");
+  ReplaceNaNByZero(msg->fluid_pressure, "barometer");
 }
 
 }  // namespace proc_navigation

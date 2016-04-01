@@ -33,15 +33,15 @@
 # ********* Measure variances ***********
 
 # Gravity measurements variances
-/proc_navigation/ekf/sigma_meas_gravity : 15.0
+/proc_navigation/ekf/sigma_meas_gravity : 0.010
 # Magneto measurements variances
-/proc_navigation/ekf/sigma_meas_mag : 10.0
+/proc_navigation/ekf/sigma_meas_mag : 0.010
 # DVL measurements variances
-/proc_navigation/ekf/sigma_meas_dvl_x : 10.0
-/proc_navigation/ekf/sigma_meas_dvl_y : 10.0
-/proc_navigation/ekf/sigma_meas_dvl_z : 20.0
+/proc_navigation/ekf/sigma_meas_dvl_x : 0.10
+/proc_navigation/ekf/sigma_meas_dvl_y : 0.10
+/proc_navigation/ekf/sigma_meas_dvl_z : 0.10
 # Baro measurements variances
-/proc_navigation/ekf/sigma_meas_baro : 40.0
+/proc_navigation/ekf/sigma_meas_baro : 0.010
 
 # Kalman initialization states uncertainty
 /proc_navigation/ekf/sigma0_pos_x : 0.01
@@ -58,7 +58,7 @@
 /proc_navigation/ekf/sigma0_bias_baro : 0.001
 
 # Propagation uncertainty
-/proc_navigation/ekf/sigma_meas_acc : 15
+/proc_navigation/ekf/sigma_meas_acc : 15.0
 /proc_navigation/ekf/sigma_meas_gyr : 0.01
 /proc_navigation/ekf/sigma_walk_bias_acc : 0.001
 /proc_navigation/ekf/sigma_walk_bias_gyr : 0.001

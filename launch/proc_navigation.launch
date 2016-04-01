@@ -1,0 +1,11 @@
+<launch>
+	<node name="proc_navigation"
+	    pkg="proc_navigation"
+	    type="proc_navigation_node"
+	    output="log" />
+
+    <rosparam command="load"
+        file="$(find proc_navigation)/config/ekf_constants.yaml"/>
+    <rosparam command="load"
+        file="$(find proc_navigation)/config/proc_navigation_conf.yaml"/>
+</launch>

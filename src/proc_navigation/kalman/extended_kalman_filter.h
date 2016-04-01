@@ -56,8 +56,7 @@ class ExtendedKalmanFilter : public atlas::Runnable,
   using PtrList = std::vector<ExtendedKalmanFilter::Ptr>;
   using ConstPtrList = std::vector<ExtendedKalmanFilter::ConstPtr>;
 
-  // using BaroMessage = sensor_msgs::FluidPressure;
-  using BaroMessage = std_msgs::Float64;
+  using BaroMessage = sensor_msgs::FluidPressure;
   using DvlMessage = geometry_msgs::TwistWithCovarianceStamped;
   using ImuMessage = sensor_msgs::Imu;
   using MagMessage = sensor_msgs::MagneticField;
@@ -182,16 +181,6 @@ class ExtendedKalmanFilter : public atlas::Runnable,
   StateController<ImuMessage>::Ptr imu_;
   StateController<MagMessage>::Ptr mag_;
   StateController<DvlMessage>::Ptr dvl_;
-
-  /**
-   * These are the timers for the processing times.
-   * Not to be confunded with the dt between two data that is provided
-   * by the StateController.
-   */
-  atlas::MicroTimer baro_timer_;
-  atlas::MicroTimer imu_timer_;
-  atlas::MicroTimer mag_timer_;
-  atlas::MicroTimer dvl_timer_;
 
   /**
    * The initial state and states of the kalman filter.

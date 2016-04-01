@@ -34,7 +34,7 @@ namespace proc_navigation {
 //------------------------------------------------------------------------------
 //
 EkfConfiguration::EkfConfiguration(const ros::NodeHandle &nh) ATLAS_NOEXCEPT
-    : t_init(0.5),
+    : t_init(1.0),
       manual_gravity(true),
       gravity(9.8),
       heading_shift_dvl(-45),
@@ -44,12 +44,12 @@ EkfConfiguration::EkfConfiguration(const ros::NodeHandle &nh) ATLAS_NOEXCEPT
       active_mag(true),
       active_dvl(true),
       active_baro(true),
-      sigma_meas_gravity(15.0),
-      sigma_meas_mag(10.0),
-      sigma_meas_dvl_x(10.0),
-      sigma_meas_dvl_y(10.0),
-      sigma_meas_dvl_z(20.0),
-      sigma_meas_baro(40.0),
+      sigma_meas_gravity(0.010),
+      sigma_meas_mag(0.010),
+      sigma_meas_dvl_x(0.10),
+      sigma_meas_dvl_y(0.10),
+      sigma_meas_dvl_z(0.10),
+      sigma_meas_baro(0.010),
       sigma0_pos_x(0.01),
       sigma0_pos_y(0.01),
       sigma0_pos_z(0.01),
@@ -62,7 +62,7 @@ EkfConfiguration::EkfConfiguration(const ros::NodeHandle &nh) ATLAS_NOEXCEPT
       sigma0_bias_acc(0.1),
       sigma0_bias_gyr(0.001),
       sigma0_bias_baro(0.001),
-      sigma_meas_acc(15.),
+      sigma_meas_acc(15.0),
       sigma_meas_gyr(0.01),
       sigma_walk_bias_acc(0.001),
       sigma_walk_bias_gyr(0.001),
@@ -77,11 +77,11 @@ EkfConfiguration::EkfConfiguration(const ros::NodeHandle &nh) ATLAS_NOEXCEPT
       mag_sign_x(1),
       mag_sign_y(-1),
       mag_sign_z(-1),
-      baro_topic("/auv6/pressure"),
+      baro_topic("/provider_can/barometer_fluidpress_msgs"),
       dvl_topic("/provider_dvl/twist"),
       imu_topic("/provider_imu/imu"),
       mag_topic("/provider_imu/magnetic_field"),
-      simulation_active(false),
+      simulation_active(true),
       simulation_dt_imu(0.01),
       simulation_dt_mag(0.01),
       simulation_dt_dvl(0.2857142857142857),
@@ -250,11 +250,11 @@ void EkfConfiguration::DeserializeConfiguration() ATLAS_NOEXCEPT {
   FindParameter("/device_sign/mag/y", mag_sign_y);
   FindParameter("/device_sign/mag/z", mag_sign_z);
 
-  FindParameter("/proc_navigation/simulation/active", simulation_active);
-  FindParameter("/proc_navigation/simulation/dt_imu", simulation_dt_imu);
-  FindParameter("/proc_navigation/simulation/dt_mag", simulation_dt_mag);
-  FindParameter("/proc_navigation/simulation/dt_dvl", simulation_dt_dvl);
-  FindParameter("/proc_navigation/simulation/dt_baro", simulation_dt_baro);
+  FindParameter("/simulation/active", simulation_active);
+  FindParameter("/simulation/dt_imu", simulation_dt_imu);
+  FindParameter("/simulation/dt_mag", simulation_dt_mag);
+  FindParameter("/simulation/dt_dvl", simulation_dt_dvl);
+  FindParameter("/simulation/dt_baro", simulation_dt_baro);
 
   // Getting the matrix for Eigen compatible types
   std::vector<double> l_pd_tmp({static_cast<double>(l_pd(0)),
@@ -273,7 +273,7 @@ void EkfConfiguration::DeserializeConfiguration() ATLAS_NOEXCEPT {
   l_pp = Eigen::Vector3d(l_pp_tmp[0], l_pp_tmp[1], l_pp_tmp[2]);
 
   // Converting the value of the pressure in rad
-  heading_shift_dvl = static_cast<double>(heading_shift_dvl * M_PI / 180);
+  heading_shift_dvl = heading_shift_dvl * M_PI / 180;
 }
 
 //------------------------------------------------------------------------------
