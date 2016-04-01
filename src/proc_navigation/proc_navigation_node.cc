@@ -83,7 +83,7 @@ void ProcNavigationNode::OnSubjectNotify(atlas::Subject<> &subject)
 
   nav_msgs::Odometry odom;
   odom.header.stamp = current_time;
-  odom.header.frame_id = "odom";
+  odom.header.frame_id = "NED";
 
   odom.twist.twist.linear.x = state.vel_n(0);
   odom.twist.twist.linear.y = state.vel_n(1);
