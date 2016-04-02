@@ -28,7 +28,7 @@ class NedToBody:
              msg.pose.pose.orientation.z,
              msg.pose.pose.orientation.w)
 
-        self.br.sendTransform(p, q, rospy.Time.now(), "NED", "BODY")
+        self.br.sendTransform(p, q, rospy.Time.now(), "BODY", "NED")
 
 
 if __name__ == '__main__':
