@@ -203,7 +203,7 @@ void ExtendedKalmanFilter::Initialize() {
   extra_states_.r_b_dvl(2, 1) = 0;
   extra_states_.r_b_dvl(2, 2) = 1;
 
-  if (depth0 > 0) {
+  if (depth0 > 0 && active_dvl) {
     auto vel_dvl =
         Eigen::Vector3d(std::get<0>(vel).back(), std::get<1>(vel).back(),
                         std::get<2>(vel).back());
