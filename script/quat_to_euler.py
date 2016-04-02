@@ -4,43 +4,63 @@
 # Start up ROS pieces.
 PKG = 'proc_navigation'
 import roslib
+
 roslib.load_manifest(PKG)
 import rospy
 import tf
 
 # ROS messages.
 from nav_msgs.msg import Odometry
+from sensor_msgs.msg import Imu
 from sonia_msgs.msg import Eulers
 
-class QuatToEuler():
-    def __init__(self):
-        self.got_new_msg = False
-        self.euler_msg = Eulers()
 
+class QuatToEuler:
+    """ Class that subscribe to different ROS topics
+        and output euler angles messages
+    """
+    def __init__(self):
         # Create subscribers and publishers.
-        sub_odom  = rospy.Subscriber("/proc_navigation/odom", Odometry, self.odom_callback)
-        pub_euler = rospy.Publisher("/proc_navigation/euler", Eulers)
+        self.sub_imu = rospy.Subscriber("imu", Imu, self.imu_callback)
+        self.sub_odom = rospy.Subscriber("/proc_navigation/odom", Odometry,
+                                         self.odom_callback)
+        self.pub_euler_odom = rospy.Publisher("/proc_navigation/euler_odom",
+                                              Eulers)
+        self.pub_euler_imu = rospy.Publisher("/proc_navigation/euler_imu",
+                                             Eulers)
 
         # Main while loop.
         while not rospy.is_shutdown():
-            # Publish new data if we got a new message.
-            if self.got_new_msg:
-                pub_euler.publish(self.euler_msg)
-                self.got_new_msg = False
+            continue
 
     # Odometry callback function.
     def odom_callback(self, msg):
         # Convert quaternions to Euler angles.
-        (r, p, y) = tf.transformations.euler_from_quaternion([msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w])
-        self.fill_euler_msg(msg, r, p, y)
+        (r, p, y) = tf.transformations.euler_from_quaternion(
+            [msg.pose.pose.orientation.x, msg.pose.pose.orientation.y,
+             msg.pose.pose.orientation.z, msg.pose.pose.orientation.w])
+        euler_msg = self.quat_to_euler_msg(msg, r, p, y)
+        self.pub_euler_imu.publish(euler_msg)
+
+    # IMU callback function.
+    def imu_callback(self, msg):
+        # Convert quaternions to Euler angles.
+        (r, p, y) = tf.transformations.euler_from_quaternion(
+            [msg.orientation.x, msg.orientation.y, msg.orientation.z,
+             msg.orientation.w])
+        euler_msg = self.quat_to_euler_msg(msg, r, p, y)
+        self.pub_euler_imu.publish(euler_msg)
 
     # Fill in Euler angle message.
-    def fill_euler_msg(self, msg, r, p, y):
-        self.got_new_msg = True
-        self.euler_msg.header.stamp = msg.header.stamp
-        self.euler_msg.roll  = r
-        self.euler_msg.pitch = p
-        self.euler_msg.yaw   = y
+    @staticmethod
+    def quat_to_euler_msg(msg, r, p, y):
+        euler_msg = Eulers()
+        euler_msg.header.stamp = msg.header.stamp
+        euler_msg.roll = r
+        euler_msg.pitch = p
+        euler_msg.yaw = y
+        return euler_msg
+
 
 # Main function.
 if __name__ == '__main__':
@@ -49,4 +69,5 @@ if __name__ == '__main__':
     # Go to class functions that do all the heavy lifting. Do error checking.
     try:
         quat_to_euler = QuatToEuler()
-    except rospy.ROSInterruptException: pass
+    except rospy.ROSInterruptException:
+        pass
