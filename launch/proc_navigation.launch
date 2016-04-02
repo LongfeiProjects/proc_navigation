@@ -6,14 +6,22 @@
 
     <rosparam command="load"
         file="$(find proc_navigation)/config/ekf_constants.yaml"/>
+
     <rosparam command="load"
         file="$(find proc_navigation)/config/proc_navigation_conf.yaml"/>
 
-	<node pkg="tf" type="static_transform_publisher" name="enu_to_ned" args="0.0 0.0 0.0 1.5707963267949 0.0 3.1415926535898 ENU NED 100" />
+	<node name="enu_to_ned"
+	      pkg="tf"
+	      type="static_transform_publisher"
+	      args="0.0 0.0 0.0 1.5707963267949 0.0 3.1415926535898 ENU NED 100" />
 
 	<node name="quat_to_euler"
 	    pkg="proc_navigation"
 	    type="quat_to_euler.py"
 	    output="log" />
 
+	<node name="tf_ned_to_body"
+	    pkg="proc_navigation"
+	    type="tf_ned_to_body.py"
+	    output="log" />
 </launch>
