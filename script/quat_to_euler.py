@@ -39,9 +39,9 @@ class QuatToEuler:
              msg.pose.pose.orientation.x,
              msg.pose.pose.orientation.y,
              msg.pose.pose.orientation.z)
-        y = atan2(2*(b[2]*b[3] - b[0]*b[1]),1 - 2*(b[1]*b[1] + b[2]*b[2]))
+        r = atan2(2*(b[2]*b[3] - b[0]*b[1]),1 - 2*(b[1]*b[1] + b[2]*b[2]))
         p = asin(-2*(b[1]*b[3] + b[0]*b[2]))
-        r = atan2(2*(b[1]*b[2] - b[0]*b[3]),1 - 2*(b[2]*b[2] + b[3]*b[3]))
+        y = atan2(2*(b[1]*b[2] - b[0]*b[3]),1 - 2*(b[2]*b[2] + b[3]*b[3]))
 
         euler_msg = self.quat_to_euler_msg(msg, r, p, y)
         self.pub_euler_imu.publish(euler_msg)
@@ -49,9 +49,9 @@ class QuatToEuler:
     # IMU callback function.
     def imu_callback(self, msg):
         b = (msg.orientation.w, msg.orientation.x, msg.orientation.y, msg.orientation.z)
-        y = atan2(2*(b[2]*b[3] - b[0]*b[1]),1 - 2*(b[1]*b[1] + b[2]*b[2]))
+        r = atan2(2*(b[2]*b[3] - b[0]*b[1]),1 - 2*(b[1]*b[1] + b[2]*b[2]))
         p = asin(-2*(b[1]*b[3] + b[0]*b[2]))
-        r = atan2(2*(b[1]*b[2] - b[0]*b[3]),1 - 2*(b[2]*b[2] + b[3]*b[3]))
+        y = atan2(2*(b[1]*b[2] - b[0]*b[3]),1 - 2*(b[2]*b[2] + b[3]*b[3]))
 
         euler_msg = self.quat_to_euler_msg(msg, r, p, y)
         self.pub_euler_imu.publish(euler_msg)
