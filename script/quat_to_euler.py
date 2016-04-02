@@ -25,9 +25,9 @@ class QuatToEuler:
         self.sub_odom = rospy.Subscriber("/proc_navigation/odom", Odometry,
                                          self.odom_callback)
         self.pub_euler_odom = rospy.Publisher("/proc_navigation/euler_odom",
-                                              Eulers, 100)
+                                              Eulers, queue_size=100)
         self.pub_euler_imu = rospy.Publisher("/proc_navigation/euler_imu",
-                                             Eulers, 100)
+                                             Eulers, queue_size=100)
 
         # Main while loop.
         while not rospy.is_shutdown():
