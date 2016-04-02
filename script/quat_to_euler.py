@@ -7,7 +7,7 @@ import roslib
 
 roslib.load_manifest(PKG)
 import rospy
-import tf
+from math import atan2, asin
 
 # ROS messages.
 from nav_msgs.msg import Odometry
@@ -35,19 +35,21 @@ class QuatToEuler:
 
     # Odometry callback function.
     def odom_callback(self, msg):
-        # Convert quaternions to Euler angles.
-        (r, p, y) = tf.transformations.euler_from_quaternion(
-            [msg.pose.pose.orientation.x, msg.pose.pose.orientation.y,
-             msg.pose.pose.orientation.z, msg.pose.pose.orientation.w])
+        b = (msg.orientation.w, msg.orientation.x, msg.orientation.y, msg.orientation.z)
+        y = atan2(2*(b(3)*b(4) - b(1)*b(2)),1 - 2*(b(2)^2 + b(3)^2))
+        p = asin(-2*(b(2)*b(4) + b(1)*b(3)))
+        r = atan2(2*(b(2)*b(3) - b(1)*b(4)),1 - 2*(b(3)^2 + b(4)^2))
+
         euler_msg = self.quat_to_euler_msg(msg, r, p, y)
         self.pub_euler_imu.publish(euler_msg)
 
     # IMU callback function.
     def imu_callback(self, msg):
-        # Convert quaternions to Euler angles.
-        (r, p, y) = tf.transformations.euler_from_quaternion(
-            [msg.orientation.x, msg.orientation.y, msg.orientation.z,
-             msg.orientation.w])
+        b = (msg.orientation.w, msg.orientation.x, msg.orientation.y, msg.orientation.z)
+        y = atan2(2*(b(3)*b(4) - b(1)*b(2)),1 - 2*(b(2)^2 + b(3)^2))
+        p = asin(-2*(b(2)*b(4) + b(1)*b(3)))
+        r = atan2(2*(b(2)*b(3) - b(1)*b(4)),1 - 2*(b(3)^2 + b(4)^2))
+
         euler_msg = self.quat_to_euler_msg(msg, r, p, y)
         self.pub_euler_imu.publish(euler_msg)
 
