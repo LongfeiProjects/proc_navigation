@@ -11,16 +11,14 @@ from nav_msgs.msg import Odometry
 
 class NedToBody:
     def __init__(self):
+        self.br = tf.TransformBroadcaster()
         self.sub_odom = rospy.Subscriber("/proc_navigation/odom", Odometry,
                                          self.odom_callback)
 
         while not rospy.is_shutdown():
             continue
 
-    @staticmethod
-    def odom_callback(msg):
-        br = tf.TransformBroadcaster()
-
+    def odom_callback(self, msg):
         p = (msg.pose.pose.position.x,
              msg.pose.pose.position.y,
              msg.pose.pose.position.z)
@@ -30,12 +28,12 @@ class NedToBody:
              msg.pose.pose.orientation.z,
              msg.pose.pose.orientation.w)
 
-        br.sendTransform(p, q, rospy.Time.now(), "NED", "BODY")
+        self.br.sendTransform(p, q, rospy.Time.now(), "NED", "BODY")
 
 
 if __name__ == '__main__':
     rospy.init_node('tf_ned_to_body')
     try:
-        quat_to_euler = NedToBody()
+        ned_to_body = NedToBody()
     except rospy.ROSInterruptException:
         pass
