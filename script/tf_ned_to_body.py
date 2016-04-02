@@ -20,16 +20,17 @@ class NedToBody:
     @staticmethod
     def odom_callback(msg):
         br = tf.TransformBroadcaster()
-        transform = tf.Transform()
-        transform.setOrigin(tf.Vector3(msg.pose.pose.position.x,
-                                       msg.pose.pose.position.y,
-                                       msg.pose.pose.position.z))
-        q = tf.Quaternion(msg.pose.pose.orientation.x,
-                          msg.pose.pose.orientation.y,
-                          msg.pose.pose.orientation.z,
-                          msg.pose.pose.orientation.w)
-        transform.setRotation(q)
-        br.sendTransformation(tf.StampedTransform(transform, rospy.Time.now(), "NED", "BODY"))
+
+        p = (msg.pose.pose.position.x,
+             msg.pose.pose.position.y,
+             msg.pose.pose.position.z)
+
+        q = (msg.pose.pose.orientation.x,
+             msg.pose.pose.orientation.y,
+             msg.pose.pose.orientation.z,
+             msg.pose.pose.orientation.w)
+
+        br.sendTransform(p, q, rospy.Time.now(), "NED", "BODY")
 
 
 if __name__ == '__main__':
