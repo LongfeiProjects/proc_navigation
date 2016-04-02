@@ -351,8 +351,8 @@ void ExtendedKalmanFilter::Run() {
       gyr_raw_data(2) = imu_sign_z * imu_msg->angular_velocity.z;
 
       extra_states_.w_ib_b = gyr_raw_data - states_.gyro_bias;
-
-      states_.b = atlas::ExactQuat(extra_states_.w_ib_b, dt, states_.b);
+      states_.b = Eigen::Quaterniond(imu_msg->orientation.w, imu_msg->orientation.x, imu_msg->orientation.y, imu_msg->orientation.z);
+      //states_.b = atlas::ExactQuat(extra_states_.w_ib_b, dt, states_.b);
       extra_states_.r_n_b = Eigen::Matrix3d(states_.b);
       extra_states_.r_b_n = extra_states_.r_n_b.adjoint();
       extra_states_.euler = atlas::QuatToEuler(states_.b);
